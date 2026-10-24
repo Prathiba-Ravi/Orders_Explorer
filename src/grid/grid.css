@@ -257,3 +257,8 @@
   box-shadow: 2px 0 4px rgb(26 34 48 / 8%);
   pointer-events: none;
 }
+
+/* The row checkbox is a display only: clicks go to its cell, so keyboard focus stays on the grid. */
+.grid__cell--select .grid__checkbox {
+  pointer-events: none;
+}

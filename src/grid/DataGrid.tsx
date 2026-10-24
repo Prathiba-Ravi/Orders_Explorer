@@ -100,6 +100,9 @@ export function DataGrid<T>({
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Keys pressed on a header button or the select-all checkbox belong to that control
+    // (Space/Enter sort, Space ticks the box). Only act on keys aimed at the grid itself.
+    if (e.target !== e.currentTarget) return;
     if (!focus || count === 0) return;
     const page = Math.max(1, Math.floor(((scrollerRef.current?.clientHeight ?? 400) - HEADER_HEIGHT) / ROW_HEIGHT));
 
