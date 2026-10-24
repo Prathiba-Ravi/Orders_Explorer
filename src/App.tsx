@@ -42,7 +42,8 @@ export function App() {
     [appliedFilter, data.status, orders],
   );
 
-  const total = data.status === 'ready' ? data.stats.totalRecords : 0;
+  // Unique orders (50,000), not records in the file (50,030, which includes the duplicates).
+  const total = orders.length;
   const shown = filtered.length;
   const empty = data.status === 'ready' && shown === 0;
 
