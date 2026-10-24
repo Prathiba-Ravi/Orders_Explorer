@@ -1,24 +1,33 @@
 import { useOrders } from './data/useOrders';
+import { formatCount } from './lib/format';
+import { OrdersGrid } from './orders/OrdersGrid';
+import './App.css';
 
-/** Temporary shell: proves the data layer end to end. Replaced by the real screen in later commits. */
 export function App() {
   const data = useOrders();
 
-  if (data.status === 'loading') {
-    return <p role="status">{data.phase === 'downloading' ? 'Downloading orders…' : 'Preparing orders…'}</p>;
-  }
-  if (data.status === 'error') {
-    return (
-      <div role="alert">
-        <p>{data.message}</p>
-        <button onClick={data.reload}>Try again</button>
-      </div>
-    );
-  }
   return (
-    <p>
-      {data.orders.length.toLocaleString('en-IN')} orders loaded ({data.stats.duplicatesRemoved} duplicates removed,{' '}
-      {data.stats.skipped} skipped).
-    </p>
+    <div className="app">
+      <header className="toolbar">
+        <h1>Orders Explorer</h1>
+        {data.status === 'ready' && (
+          <span className="toolbar__count">{formatCount(data.orders.length)} orders</span>
+        )}
+      </header>
+      {data.status === 'loading' && (
+        <div className="state" role="status">
+          {data.phase === 'downloading' ? 'Downloading orders…' : 'Preparing orders…'}
+        </div>
+      )}
+      {data.status === 'error' && (
+        <div className="state" role="alert">
+          <p>{data.message}</p>
+          <button className="btn" onClick={data.reload}>
+            Try again
+          </button>
+        </div>
+      )}
+      {data.status === 'ready' && <OrdersGrid orders={data.orders} />}
+    </div>
   );
 }

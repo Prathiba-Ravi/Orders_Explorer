@@ -1,0 +1,47 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  height: var(--toolbar-h);
+  padding: 0 14px;
+  background: var(--surface);
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.toolbar__count {
+  color: var(--ink-2);
+}
+
+.state {
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  flex: 1;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+.btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+.btn:hover {
+  background: var(--surface-2);
+}

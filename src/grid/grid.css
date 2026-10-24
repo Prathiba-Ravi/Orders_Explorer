@@ -1,0 +1,112 @@
+.grid {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+  border-top: 1px solid var(--line-strong);
+  overscroll-behavior: contain;
+}
+
+.grid__header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: var(--cols);
+  width: var(--grid-width);
+  min-width: 100%;
+  height: var(--header-h);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.grid__hcell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: 0.01em;
+  user-select: none;
+  border-right: 1px solid var(--line);
+}
+
+.grid__hcell.is-right {
+  justify-content: flex-end;
+}
+
+.grid__hlabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid__body {
+  position: relative;
+  width: var(--grid-width);
+  min-width: 100%;
+}
+
+.grid__row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: var(--cols);
+  width: var(--grid-width);
+  min-width: 100%;
+  height: var(--row-h);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.grid__row:hover {
+  background: var(--surface-2);
+}
+
+.grid__cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-right: 1px solid transparent;
+}
+
+.grid__cell.is-right {
+  justify-content: flex-end;
+}
+
+.grid__cell.is-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+}
+
+.is-muted {
+  color: var(--ink-3);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.status--pending i { background: var(--s-status-pending); }
+.status--processing i { background: var(--s-status-processing); }
+.status--shipped i { background: var(--s-status-shipped); }
+.status--delivered i { background: var(--s-status-delivered); }
+.status--cancelled i { background: var(--s-status-cancelled); }

@@ -1,0 +1,32 @@
+/* Design tokens. A dense internal tool: quiet neutrals, one accent, 13px type, 28px rows. */
+:root {
+  color-scheme: light;
+
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --ink: #1a2230;
+  --ink-2: #4a5568;
+  --ink-3: #7b8696;
+  --line: #e3e6eb;
+  --line-strong: #cdd2da;
+  --accent: #3b5bdb;
+  --accent-ink: #ffffff;
+  --accent-soft: #e8edff;
+  --danger: #c92a2a;
+
+  --s-status-pending: #b7791f;
+  --s-status-processing: #3b5bdb;
+  --s-status-shipped: #0b7285;
+  --s-status-delivered: #2b8a3e;
+  --s-status-cancelled: #868e96;
+
+  --font-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --fs-base: 13px;
+  --fs-small: 12px;
+
+  --row-h: 28px;
+  --header-h: 32px;
+  --toolbar-h: 44px;
+}
