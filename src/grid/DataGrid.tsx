@@ -39,6 +39,8 @@ interface DataGridProps<T> {
   focus: FocusCell | null;
   onFocusChange: (cell: FocusCell | null) => void;
   onOpenRow?: (viewIndex: number) => void;
+  /** Shown over the empty body when `view` has no rows. The grid itself stays mounted, so selection survives. */
+  emptyState?: ReactNode;
 }
 
 export function DataGrid<T>({
@@ -57,6 +59,7 @@ export function DataGrid<T>({
   focus,
   onFocusChange,
   onOpenRow,
+  emptyState,
 }: DataGridProps<T>) {
   const count = view.length;
   const { scrollerRef, start, end, onScroll, totalHeight } = useVirtualWindow({
@@ -175,42 +178,45 @@ export function DataGrid<T>({
   }
 
   return (
-    <div
-      ref={scrollerRef}
-      className="grid"
-      role="grid"
-      aria-label={label}
-      aria-rowcount={count + 1}
-      aria-colcount={colCount}
-      tabIndex={0}
-      onScroll={onScroll}
-      onKeyDown={onKeyDown}
-      onFocus={() => {
-        if (!focus && count > 0) onFocusChange({ viewRow: 0, col: 1 });
-      }}
-      style={style}
-    >
-      <div className="grid__header" role="row" aria-rowindex={1}>
-        <SelectHeaderCell selection={selection} stickyLeft={0} />
-        {columns.map((col, idx) => (
-          <HeaderCell
-            key={col.id}
-            column={col}
-            colIndex={idx + 1}
-            width={widthOf(col)}
-            sort={sort?.columnId === col.id ? sort.dir : null}
-            onSort={onSort}
-            resize={resize}
-            onReset={() => onWidthChange(col.id, col.width)}
-            pinned={pinnedColumnId === col.id}
-            onTogglePin={onTogglePin ? () => onTogglePin(col.id) : undefined}
-            stickyLeft={stickyLeft(col.id)}
-          />
-        ))}
+    <div className="grid-wrap">
+      <div
+        ref={scrollerRef}
+        className="grid"
+        role="grid"
+        aria-label={label}
+        aria-rowcount={count + 1}
+        aria-colcount={colCount}
+        tabIndex={0}
+        onScroll={onScroll}
+        onKeyDown={onKeyDown}
+        onFocus={() => {
+          if (!focus && count > 0) onFocusChange({ viewRow: 0, col: 1 });
+        }}
+        style={style}
+      >
+        <div className="grid__header" role="row" aria-rowindex={1}>
+          <SelectHeaderCell selection={selection} stickyLeft={0} />
+          {columns.map((col, idx) => (
+            <HeaderCell
+              key={col.id}
+              column={col}
+              colIndex={idx + 1}
+              width={widthOf(col)}
+              sort={sort?.columnId === col.id ? sort.dir : null}
+              onSort={onSort}
+              resize={resize}
+              onReset={() => onWidthChange(col.id, col.width)}
+              pinned={pinnedColumnId === col.id}
+              onTogglePin={onTogglePin ? () => onTogglePin(col.id) : undefined}
+              stickyLeft={stickyLeft(col.id)}
+            />
+          ))}
+        </div>
+        <div className="grid__body" role="rowgroup" style={{ height: totalHeight }}>
+          {rows}
+        </div>
       </div>
-      <div className="grid__body" role="rowgroup" style={{ height: totalHeight }}>
-        {rows}
-      </div>
+      {count === 0 && emptyState && <div className="grid__empty">{emptyState}</div>}
     </div>
   );
 }

@@ -75,7 +75,7 @@ export function useGridSelection({ view, rowKey }: Options) {
     for (const k of visibleKeys) if (selected.has(k)) visSelected++;
     const all = visibleKeys.length > 0 && visSelected === visibleKeys.length;
     const some = visSelected > 0 && !all;
-    return { set: selected, count: selected.size, visSelected, all, some };
+    return { set: selected, count: selected.size, visSelected, hidden: selected.size - visSelected, all, some };
   }, [selected, visibleKeys]);
 
   return {

@@ -20,7 +20,8 @@ export function App() {
   const [filter, setFilter] = useState<FilterRoot>(EMPTY_FILTER);
   const appliedFilter = useDebouncedValue(filter, 150);
   const [details, setDetails] = useState<import('./data/types').Order | null>(null);
-  const [selectedCount, setSelectedCount] = useState(0);
+  const [selected, setSelected] = useState({ count: 0, hidden: 0 });
+  const onSelectionCountChange = useCallback((count: number, hidden: number) => setSelected({ count, hidden }), []);
 
   const onWidthChange = useCallback((id: string, width: number) => {
     setWidths((w) => ({ ...w, [id]: width }));
@@ -56,8 +57,11 @@ export function App() {
             {formatCount(shown)} of {formatCount(total)} orders
           </span>
         )}
-        {data.status === 'ready' && selectedCount > 0 && (
-          <span className="toolbar__selection">{formatCount(selectedCount)} selected</span>
+        {data.status === 'ready' && selected.count > 0 && (
+          <span className="toolbar__selection">
+            {formatCount(selected.count)} selected
+            {selected.hidden > 0 && ` (${formatCount(selected.hidden)} hidden by filter)`}
+          </span>
         )}
         <div className="toolbar__spacer" />
         {data.status === 'ready' && (
@@ -91,28 +95,29 @@ export function App() {
       {data.status === 'ready' && (
         <div className="app__main">
           <div className="app__grid-wrap">
-            {empty ? (
-              <div className="state state--empty" role="status">
-                <p>No orders match this filter.</p>
-                <button type="button" className="btn" onClick={() => setFilter(EMPTY_FILTER)}>
-                  Clear filter
-                </button>
-              </div>
-            ) : (
-              <OrdersGrid
-                orders={orders}
-                view={filtered}
-                sort={sort}
-                onSort={(id) => setSort((cur) => nextSort(cur, id))}
-                widths={widths}
-                onWidthChange={onWidthChange}
-                pinnedColumnId={pinnedColumnId}
-                onTogglePin={onTogglePin}
-                detailsOrder={details}
-                onOpenDetails={setDetails}
-                onSelectionCountChange={setSelectedCount}
-              />
-            )}
+            <OrdersGrid
+              orders={orders}
+              view={filtered}
+              sort={sort}
+              onSort={(id) => setSort((cur) => nextSort(cur, id))}
+              widths={widths}
+              onWidthChange={onWidthChange}
+              pinnedColumnId={pinnedColumnId}
+              onTogglePin={onTogglePin}
+              detailsOrder={details}
+              onOpenDetails={setDetails}
+              onSelectionCountChange={onSelectionCountChange}
+              emptyState={
+                empty ? (
+                  <>
+                    <p className="state__title">No orders match these filters</p>
+                    <button type="button" className="btn" onClick={() => setFilter(EMPTY_FILTER)}>
+                      Clear all filters
+                    </button>
+                  </>
+                ) : undefined
+              }
+            />
           </div>
           {details && <OrderDetails order={details} onClose={() => setDetails(null)} />}
         </div>

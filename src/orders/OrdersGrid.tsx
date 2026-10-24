@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DataGrid, type FocusCell } from '../grid/DataGrid';
 import type { SortState } from '../grid/types';
 import type { Order } from '../data/types';
@@ -17,7 +17,10 @@ interface OrdersGridProps {
   onTogglePin: (columnId: string) => void;
   detailsOrder: Order | null;
   onOpenDetails: (order: Order | null) => void;
-  onSelectionCountChange?: (count: number) => void;
+  /** Called when the selection changes: how many rows are selected, and how many of those the filter hides. */
+  onSelectionCountChange?: (count: number, hidden: number) => void;
+  /** Shown in the grid area when no rows match. The grid stays mounted so the selection is kept. */
+  emptyState?: ReactNode;
 }
 
 export function OrdersGrid({
@@ -32,6 +35,7 @@ export function OrdersGrid({
   detailsOrder,
   onOpenDetails,
   onSelectionCountChange,
+  emptyState,
 }: OrdersGridProps) {
   const sorter = useMemo(() => createSorter(orders), [orders]);
   const sortedView = useMemo(() => sorter.sortSubset(view, sort), [sorter, view, sort]);
@@ -45,8 +49,8 @@ export function OrdersGrid({
   const [focus, setFocus] = useState<FocusCell | null>(null);
 
   useEffect(() => {
-    onSelectionCountChange?.(selection.count);
-  }, [onSelectionCountChange, selection.count]);
+    onSelectionCountChange?.(selection.count, selection.hidden);
+  }, [onSelectionCountChange, selection.count, selection.hidden]);
 
   useEffect(() => {
     if (focus && focus.viewRow >= sortedView.length) {
@@ -101,6 +105,7 @@ export function OrdersGrid({
       focus={focus}
       onFocusChange={setFocus}
       onOpenRow={openRow}
+      emptyState={emptyState}
     />
   );
 }

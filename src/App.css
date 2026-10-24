@@ -51,8 +51,11 @@
   background: transparent;
 }
 
-.state--empty {
-  flex: 1;
+.state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
 }
 
 .state {

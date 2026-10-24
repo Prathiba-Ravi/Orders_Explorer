@@ -1,3 +1,27 @@
+.grid-wrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Centred in the area under the header; the header and scrollbars stay usable. */
+.grid__empty {
+  position: absolute;
+  inset: var(--header-h) 0 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.grid__empty > * {
+  pointer-events: auto;
+}
+
 .grid {
   position: relative;
   flex: 1 1 auto;
