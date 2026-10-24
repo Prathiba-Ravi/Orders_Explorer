@@ -1,5 +1,6 @@
-import { memo, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { memo, useEffect, type CSSProperties, type ReactNode } from 'react';
 import type { GridColumn, SortState } from './types';
+import { MIN_COLUMN_WIDTH, useColumnResize } from './useColumnResize';
 import { useVirtualWindow } from './useVirtualWindow';
 import './grid.css';
 
@@ -16,13 +17,26 @@ interface DataGridProps<T> {
   sort: SortState | null;
   /** Called with the id of the clicked (or Enter/Space-activated) sortable header. */
   onSort: (columnId: string) => void;
+  /** Widths the user has set, by column id. Missing ids use the column's default width. */
+  widths: Readonly<Record<string, number>>;
+  onWidthChange: (columnId: string, width: number) => void;
 }
 
 /**
  * A hand-written virtualized grid. Only the rows near the viewport exist in the DOM;
  * column widths live in one CSS variable so rows never re-render for layout.
  */
-export function DataGrid<T>({ columns, data, view, getRowId, label, sort, onSort }: DataGridProps<T>) {
+export function DataGrid<T>({
+  columns,
+  data,
+  view,
+  getRowId,
+  label,
+  sort,
+  onSort,
+  widths,
+  onWidthChange,
+}: DataGridProps<T>) {
   const count = view.length;
   const { scrollerRef, start, end, onScroll, totalHeight } = useVirtualWindow({
     count,
@@ -37,8 +51,10 @@ export function DataGrid<T>({ columns, data, view, getRowId, label, sort, onSort
     if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
   }, [scrollerRef, sortColumn, sortDir]);
 
-  const template = useMemo(() => columns.map((c) => `${c.width}px`).join(' '), [columns]);
-  const totalWidth = useMemo(() => columns.reduce((sum, c) => sum + c.width, 0), [columns]);
+  const resize = useColumnResize(onWidthChange);
+  const widthOf = (c: GridColumn<T>) => (resize.draft?.id === c.id ? resize.draft.width : (widths[c.id] ?? c.width));
+  const template = columns.map((c) => `${widthOf(c)}px`).join(' ');
+  const totalWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
   const style = { '--cols': template, '--grid-width': `${totalWidth}px` } as CSSProperties;
 
   const rows: ReactNode[] = [];
@@ -61,7 +77,15 @@ export function DataGrid<T>({ columns, data, view, getRowId, label, sort, onSort
     >
       <div className="grid__header" role="row" aria-rowindex={1}>
         {columns.map((col) => (
-          <HeaderCell key={col.id} column={col} sort={sort?.columnId === col.id ? sort.dir : null} onSort={onSort} />
+          <HeaderCell
+            key={col.id}
+            column={col}
+            width={widthOf(col)}
+            sort={sort?.columnId === col.id ? sort.dir : null}
+            onSort={onSort}
+            resize={resize}
+            onReset={() => onWidthChange(col.id, col.width)}
+          />
         ))}
       </div>
       <div className="grid__body" role="rowgroup" style={{ height: totalHeight }}>
@@ -73,11 +97,15 @@ export function DataGrid<T>({ columns, data, view, getRowId, label, sort, onSort
 
 interface HeaderCellProps<T> {
   column: GridColumn<T>;
+  width: number;
   sort: SortState['dir'] | null;
   onSort: (columnId: string) => void;
+  resize: ReturnType<typeof useColumnResize>;
+  onReset: () => void;
 }
 
-function HeaderCell<T>({ column, sort, onSort }: HeaderCellProps<T>) {
+function HeaderCell<T>({ column, width, sort, onSort, resize, onReset }: HeaderCellProps<T>) {
+  const minWidth = column.minWidth ?? MIN_COLUMN_WIDTH;
   const right = column.align === 'right';
   const ariaSort = sort === 'asc' ? 'ascending' : sort === 'desc' ? 'descending' : column.sortable ? 'none' : undefined;
   return (
@@ -90,6 +118,17 @@ function HeaderCell<T>({ column, sort, onSort }: HeaderCellProps<T>) {
       ) : (
         <span className="grid__hlabel">{column.header}</span>
       )}
+      <div
+        className={`grid__resizer${resize.draft?.id === column.id ? ' is-active' : ''}`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Resize ${column.header} column. Double-click to reset.`}
+        onPointerDown={(e) => resize.onPointerDown(e, column.id, width, minWidth)}
+        onPointerMove={resize.onPointerMove}
+        onPointerUp={resize.onPointerUp}
+        onPointerCancel={resize.onPointerCancel}
+        onDoubleClick={onReset}
+      />
     </div>
   );
 }

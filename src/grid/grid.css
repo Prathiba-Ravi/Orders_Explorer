@@ -82,6 +82,33 @@
   white-space: nowrap;
 }
 
+.grid__resizer {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  bottom: 0;
+  z-index: 1;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.grid__resizer::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.grid__resizer:hover::after,
+.grid__resizer.is-active::after {
+  background: var(--accent);
+}
+
 .grid__body {
   position: relative;
   width: var(--grid-width);

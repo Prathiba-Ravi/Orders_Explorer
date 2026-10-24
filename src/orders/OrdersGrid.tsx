@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { DataGrid } from '../grid/DataGrid';
 import type { SortState } from '../grid/types';
 import type { Order } from '../data/types';
@@ -14,6 +14,8 @@ interface OrdersGridProps {
 export function OrdersGrid({ orders, sort, onSort }: OrdersGridProps) {
   const sorter = useMemo(() => createSorter(orders), [orders]);
   const view = useMemo(() => sorter.sort(sort), [sorter, sort]);
+  const [widths, setWidths] = useState<Record<string, number>>({});
+  const onWidthChange = useCallback((id: string, width: number) => setWidths((w) => ({ ...w, [id]: width })), []);
 
   return (
     <DataGrid
@@ -24,6 +26,8 @@ export function OrdersGrid({ orders, sort, onSort }: OrdersGridProps) {
       label="Orders"
       sort={sort}
       onSort={onSort}
+      widths={widths}
+      onWidthChange={onWidthChange}
     />
   );
 }
