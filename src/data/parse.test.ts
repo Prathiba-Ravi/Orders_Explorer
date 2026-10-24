@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseNumber, parseOrderIdNumber, parseTimestamp } from './parse';
+import { isDateOnly, parseNumber, parseOrderIdNumber, parseTimestamp } from './parse';
 
 const MAR_14_0930 = Date.UTC(2025, 2, 14, 9, 30, 0);
 
@@ -56,5 +56,16 @@ describe('parseOrderIdNumber', () => {
     expect(parseOrderIdNumber('ord-1')).toBeNull();
     expect(parseOrderIdNumber('ORD-')).toBeNull();
     expect(parseOrderIdNumber('1234')).toBeNull();
+  });
+});
+
+describe('isDateOnly', () => {
+  it('is true only for values with no time of day', () => {
+    expect(isDateOnly('14/03/2025')).toBe(true);
+    expect(isDateOnly('2025-03-14')).toBe(true);
+    expect(isDateOnly('2025-03-14T09:30:00')).toBe(false);
+    expect(isDateOnly('2025-03-14T09:30:00.000Z')).toBe(false);
+    expect(isDateOnly(1741944600)).toBe(false);
+    expect(isDateOnly(null)).toBe(false);
   });
 });

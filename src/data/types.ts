@@ -27,6 +27,8 @@ export interface Order {
   currency: string;
   /** Epoch milliseconds (UTC). */
   createdAt: number;
+  /** True when the source had only a date (DD/MM/YYYY), so the 00:00 time of day was never recorded. */
+  createdAtDateOnly: boolean;
   /** Epoch milliseconds (UTC), or null when unknown. */
   updatedAt: number | null;
   region: Region;

@@ -57,6 +57,12 @@ describe('normalizeOrder', () => {
     expect(order({ createdAt: '14/03/2025' }).createdAt).toBe(Date.UTC(2025, 2, 14));
   });
 
+  it('flags createdAt values that had no time of day', () => {
+    expect(order({ createdAt: '14/03/2025' }).createdAtDateOnly).toBe(true);
+    expect(order({ createdAt: '2025-03-14T09:30:00' }).createdAtDateOnly).toBe(false);
+    expect(order({ createdAt: 1741944600 }).createdAtDateOnly).toBe(false);
+  });
+
   it('rule 5: null, missing and unreadable updatedAt are all null', () => {
     expect(order({ updatedAt: null }).updatedAt).toBeNull();
     const missing = { ...base } as Record<string, unknown>;
@@ -205,6 +211,13 @@ describe('the real orders.json', () => {
     const noPriority = orders.filter((o) => o.priority === null).length;
     expect(noPriority).toBeGreaterThan(14_000);
     expect(orders.some((o) => o.updatedAt === null)).toBe(true);
+  });
+
+  it('flags exactly the date-only rows, and they are the only midnight timestamps', () => {
+    const dateOnly = orders.filter((o) => o.createdAtDateOnly);
+    expect(dateOnly.length).toBeGreaterThan(3000);
+    const midnight = orders.filter((o) => o.createdAt % 86_400_000 === 0);
+    expect(midnight.every((o) => o.createdAtDateOnly)).toBe(true);
   });
 
   it('picked the right survivor for a known duplicate (ORD-0038222: later updatedAt)', () => {

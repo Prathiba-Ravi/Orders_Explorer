@@ -1,4 +1,4 @@
-import { parseNumber, parseOrderIdNumber, parseTimestamp } from './parse';
+import { isDateOnly, parseNumber, parseOrderIdNumber, parseTimestamp } from './parse';
 import {
   CHANNELS,
   PAYMENT_METHODS,
@@ -90,6 +90,7 @@ export function normalizeOrder(raw: unknown): Order | string {
     amount,
     currency,
     createdAt,
+    createdAtDateOnly: isDateOnly(r.createdAt),
     // Rule 5: null, missing and unreadable are all "unknown".
     updatedAt: parseTimestamp(r.updatedAt),
     region,

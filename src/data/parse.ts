@@ -75,3 +75,15 @@ export function parseOrderIdNumber(id: string): number | null {
   const n = Number(m[1]);
   return Number.isSafeInteger(n) ? n : null;
 }
+
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * True when the source value carries a calendar date but no time of day
+ * (the DD/MM/YYYY format). Such values are parsed as midnight UTC, but the time is not real.
+ */
+export function isDateOnly(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const str = value.trim();
+  return DMY.test(str) || ISO_DATE_ONLY.test(str);
+}
