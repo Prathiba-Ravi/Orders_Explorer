@@ -25,6 +25,36 @@
   color: var(--ink-2);
 }
 
+.toolbar__selection {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+.toolbar__spacer {
+  flex: 1;
+}
+
+.app__main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.app__grid-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn--ghost {
+  background: transparent;
+}
+
+.state--empty {
+  flex: 1;
+}
+
 .state {
   display: grid;
   place-content: center;

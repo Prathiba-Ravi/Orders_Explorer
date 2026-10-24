@@ -133,6 +133,7 @@
 }
 
 .grid__cell {
+  position: relative;
   display: flex;
   align-items: center;
   min-width: 0;
@@ -174,3 +175,85 @@
 .status--shipped i { background: var(--s-status-shipped); }
 .status--delivered i { background: var(--s-status-delivered); }
 .status--cancelled i { background: var(--s-status-cancelled); }
+
+.grid__hcell--select,
+.grid__cell--select {
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.grid__checkbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.grid__hcell.is-pinned,
+.grid__cell.is-pinned {
+  position: sticky;
+  z-index: 2;
+  background: inherit;
+}
+
+.grid__hcell.is-pinned {
+  z-index: 5;
+  background: var(--surface-2);
+}
+
+.grid__row.is-selected {
+  background: var(--accent-soft);
+}
+
+.grid__row.is-selected:hover {
+  background: #dfe6ff;
+}
+
+.grid__cell.is-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.grid__pin {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-right: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  opacity: 0.35;
+}
+
+.grid__pin.is-on,
+.grid__pin:hover {
+  opacity: 1;
+}
+
+.grid__pin.is-on {
+  color: var(--accent);
+}
+
+.grid__pin-icon {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50% 50% 50% 0;
+  background: currentColor;
+  transform: rotate(-45deg);
+  margin: 2px auto;
+}
+
+.grid__hcell.is-pinned::after,
+.grid__cell.is-pinned::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  box-shadow: 2px 0 4px rgb(26 34 48 / 8%);
+  pointer-events: none;
+}

@@ -1,0 +1,155 @@
+.filter {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.filter__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter__and {
+  font-size: var(--fs-small);
+  font-weight: 650;
+  color: var(--ink-3);
+  margin: 4px 0;
+}
+
+.filter__group-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.filter__or-label {
+  font-size: var(--fs-small);
+  color: var(--ink-3);
+  margin-right: 4px;
+}
+
+.filter__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter__or {
+  font-size: var(--fs-small);
+  color: var(--ink-3);
+}
+
+.filter__condition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter__select,
+.filter__input {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  font-size: var(--fs-small);
+}
+
+.filter__input--num {
+  width: 88px;
+}
+
+.filter__enum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  max-width: 420px;
+}
+
+.filter__enum-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-small);
+}
+
+.filter__link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.filter__link--danger {
+  color: var(--danger);
+}
+
+.filter__remove {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 16px;
+}
+
+.filter__remove:hover {
+  background: var(--line);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.chips__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: var(--fs-small);
+}
+
+.chips__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chips__remove,
+.chips__clear {
+  border: 0;
+  background: none;
+  font-size: var(--fs-small);
+  color: var(--accent);
+}
+
+.chips__remove {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.chips__remove:hover {
+  background: rgb(59 91 219 / 15%);
+}

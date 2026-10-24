@@ -30,6 +30,8 @@ export const SORT_VALUES: Record<string, (o: Order) => SortKey> = {
 export interface Sorter {
   /** Row indices (into the orders array) in the requested order. Cached per column + direction. */
   sort(state: SortState | null): Int32Array;
+  /** Sort only the given indices (after filtering). Cached per column + direction + subset length. */
+  sortSubset(indices: ArrayLike<number>, state: SortState | null): Int32Array;
 }
 
 /**
@@ -84,6 +86,35 @@ export function createSorter(orders: readonly Order[]): Sorter {
         return ids[a]! - ids[b]!;
       });
       resultCache.set(cacheKey, out);
+      return out;
+    },
+
+    sortSubset(indices, state) {
+      const n = indices.length;
+      if (n === 0) return new Int32Array(0);
+      if (!state) {
+        const out = new Int32Array(n);
+        for (let i = 0; i < n; i++) out[i] = indices[i]!;
+        return out;
+      }
+      const keys = keysFor(state.columnId);
+      if (!keys) {
+        const out = new Int32Array(n);
+        for (let i = 0; i < n; i++) out[i] = indices[i]!;
+        return out;
+      }
+
+      const sign = state.dir === 'asc' ? 1 : -1;
+      const out = Int32Array.from(indices as Int32Array);
+      out.sort((a, b) => {
+        const ka = keys[a]!;
+        const kb = keys[b]!;
+        if (ka === null) return kb === null ? ids[a]! - ids[b]! : 1;
+        if (kb === null) return -1;
+        if (ka < kb) return -sign;
+        if (ka > kb) return sign;
+        return ids[a]! - ids[b]!;
+      });
       return out;
     },
   };
