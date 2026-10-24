@@ -1,12 +1,14 @@
 import { ENUM_OPTIONS, FILTER_FIELDS, fieldMeta } from './fields';
-import { dateBetweenValue, dateOpValue, msToDateInput } from './dates';
 import { newFilterId } from './newId';
+import { conditionStatus } from './status';
 import type {
+  DateCondition,
   DateField,
   EnumField,
   FilterCondition,
   FilterGroup,
   FilterRoot,
+  NumberCondition,
   NumberField,
   TextField,
 } from './types';
@@ -19,7 +21,6 @@ interface FilterBuilderProps {
 
 export function FilterBuilder({ filter, onChange }: FilterBuilderProps) {
   const groups = filter.groups;
-
   const setGroups = (next: FilterGroup[]) => onChange({ groups: next });
 
   if (groups.length === 0) {
@@ -67,16 +68,17 @@ export function FilterBuilder({ filter, onChange }: FilterBuilderProps) {
               type="button"
               className="filter__link"
               onClick={() =>
-                updateGroup(group.id, (g) => ({
-                  ...g,
-                  conditions: [...g.conditions, defaultCondition('status')],
-                }))
+                updateGroup(group.id, (g) => ({ ...g, conditions: [...g.conditions, defaultCondition('status')] }))
               }
             >
               + Condition
             </button>
             {groups.length > 1 && (
-              <button type="button" className="filter__link filter__link--danger" onClick={() => setGroups(groups.filter((g) => g.id !== group.id))}>
+              <button
+                type="button"
+                className="filter__link filter__link--danger"
+                onClick={() => setGroups(groups.filter((g) => g.id !== group.id))}
+              >
                 Remove group
               </button>
             )}
@@ -94,19 +96,35 @@ function emptyGroup(): FilterGroup {
   return { id: newFilterId('g'), conditions: [defaultCondition('status')] };
 }
 
+/** A new condition starts empty ("incomplete"), so adding one never changes the results by itself. */
 function defaultCondition(fieldId: string): FilterCondition {
   const meta = fieldMeta(fieldId)!;
   const id = newFilterId('c');
-  if (meta.kind === 'text') {
-    return { id, kind: 'text', field: meta.id as TextField, op: 'contains', value: '' };
+  switch (meta.kind) {
+    case 'text':
+      return { id, kind: 'text', field: meta.id as TextField, op: 'contains', value: '' };
+    case 'number':
+      return { id, kind: 'number', field: meta.id as NumberField, op: 'gt', value: '' };
+    case 'date':
+      return { id, kind: 'date', field: meta.id as DateField, op: 'after', value: '' };
+    case 'enum':
+      return { id, kind: 'enum', field: meta.id as EnumField, op: 'isOneOf', values: [] };
   }
-  if (meta.kind === 'number') {
-    return { id, kind: 'number', field: meta.id as NumberField, op: 'gt', value: 0 };
-  }
-  if (meta.kind === 'date') {
-    return { id, kind: 'date', field: meta.id as DateField, op: 'after', value: 0 };
-  }
-  return { id, kind: 'enum', field: meta.id as EnumField, op: 'isOneOf', values: [] };
+}
+
+/** Switching operator keeps what the user already typed where it still makes sense. */
+function changeNumberOp(c: NumberCondition, op: NumberCondition['op']): NumberCondition {
+  const first = c.op === 'between' ? c.min : c.value;
+  return op === 'between'
+    ? { id: c.id, kind: 'number', field: c.field, op, min: first, max: '' }
+    : { id: c.id, kind: 'number', field: c.field, op, value: first };
+}
+
+function changeDateOp(c: DateCondition, op: DateCondition['op']): DateCondition {
+  const first = c.op === 'between' ? c.from : c.value;
+  return op === 'between'
+    ? { id: c.id, kind: 'date', field: c.field, op, from: first, to: '' }
+    : { id: c.id, kind: 'date', field: c.field, op, value: first };
 }
 
 function ConditionRow({
@@ -118,15 +136,17 @@ function ConditionRow({
   onChange: (c: FilterCondition) => void;
   onRemove: () => void;
 }) {
-  const onField = (fieldId: string) => {
-    const m = fieldMeta(fieldId);
-    if (!m) return;
-    onChange(defaultCondition(fieldId));
-  };
+  const status = conditionStatus(condition);
+  const invalid = status.state === 'invalid';
 
   return (
     <div className="filter__condition">
-      <select className="filter__select" value={condition.field} onChange={(e) => onField(e.target.value)} aria-label="Field">
+      <select
+        className="filter__select"
+        value={condition.field}
+        onChange={(e) => onChange(defaultCondition(e.target.value))}
+        aria-label="Field"
+      >
         {FILTER_FIELDS.map((f) => (
           <option key={f.id} value={f.id}>
             {f.label}
@@ -160,11 +180,7 @@ function ConditionRow({
           <select
             className="filter__select"
             value={condition.op}
-            onChange={(e) => {
-              const op = e.target.value as typeof condition.op;
-              const value = op === 'between' ? { min: 0, max: 0 } : 0;
-              onChange({ ...condition, op, value });
-            }}
+            onChange={(e) => onChange(changeNumberOp(condition, e.target.value as NumberCondition['op']))}
             aria-label="Operator"
           >
             <option value="eq">equals</option>
@@ -176,35 +192,31 @@ function ConditionRow({
             <>
               <input
                 type="number"
-                className="filter__input filter__input--num"
-                value={condition.value.min}
-                onChange={(e) =>
-                  onChange({
-                    ...condition,
-                    value: { ...condition.value, min: Number(e.target.value) },
-                  })
-                }
+                step="any"
+                className={`filter__input filter__input--num${invalid ? ' filter__input--invalid' : ''}`}
+                value={condition.min}
+                onChange={(e) => onChange({ ...condition, min: e.target.value })}
                 aria-label="Minimum"
+                aria-invalid={invalid}
               />
+              <span className="filter__or">and</span>
               <input
                 type="number"
-                className="filter__input filter__input--num"
-                value={condition.value.max}
-                onChange={(e) =>
-                  onChange({
-                    ...condition,
-                    value: { ...condition.value, max: Number(e.target.value) },
-                  })
-                }
+                step="any"
+                className={`filter__input filter__input--num${invalid ? ' filter__input--invalid' : ''}`}
+                value={condition.max}
+                onChange={(e) => onChange({ ...condition, max: e.target.value })}
                 aria-label="Maximum"
+                aria-invalid={invalid}
               />
             </>
           ) : (
             <input
               type="number"
+              step="any"
               className="filter__input filter__input--num"
-              value={typeof condition.value === 'number' ? condition.value : 0}
-              onChange={(e) => onChange({ ...condition, value: Number(e.target.value) })}
+              value={condition.value}
+              onChange={(e) => onChange({ ...condition, value: e.target.value })}
               aria-label="Value"
             />
           )}
@@ -216,11 +228,7 @@ function ConditionRow({
           <select
             className="filter__select"
             value={condition.op}
-            onChange={(e) => {
-              const op = e.target.value as typeof condition.op;
-              const value = op === 'between' ? { min: 0, max: 0 } : 0;
-              onChange({ ...condition, op, value });
-            }}
+            onChange={(e) => onChange(changeDateOp(condition, e.target.value as DateCondition['op']))}
             aria-label="Operator"
           >
             <option value="before">before</option>
@@ -231,37 +239,28 @@ function ConditionRow({
             <>
               <input
                 type="date"
-                className="filter__input"
-                value={typeof condition.value === 'object' ? msToDateInput(condition.value.min) : ''}
-                onChange={(e) => {
-                  const to =
-                    typeof condition.value === 'object' ? msToDateInput(condition.value.max) : e.target.value;
-                  const range = dateBetweenValue(e.target.value, to);
-                  if (range) onChange({ ...condition, value: range });
-                }}
+                className={`filter__input${invalid ? ' filter__input--invalid' : ''}`}
+                value={condition.from}
+                onChange={(e) => onChange({ ...condition, from: e.target.value })}
                 aria-label="From date"
+                aria-invalid={invalid}
               />
+              <span className="filter__or">and</span>
               <input
                 type="date"
-                className="filter__input"
-                value={typeof condition.value === 'object' ? msToDateInput(condition.value.max) : ''}
-                onChange={(e) => {
-                  const from =
-                    typeof condition.value === 'object' ? msToDateInput(condition.value.min) : e.target.value;
-                  const range = dateBetweenValue(from, e.target.value);
-                  if (range) onChange({ ...condition, value: range });
-                }}
+                className={`filter__input${invalid ? ' filter__input--invalid' : ''}`}
+                value={condition.to}
+                onChange={(e) => onChange({ ...condition, to: e.target.value })}
                 aria-label="To date"
+                aria-invalid={invalid}
               />
             </>
           ) : (
             <input
               type="date"
               className="filter__input"
-              onChange={(e) => {
-                const v = dateOpValue(condition.op, e.target.value);
-                if (v !== null) onChange({ ...condition, value: v });
-              }}
+              value={condition.value}
+              onChange={(e) => onChange({ ...condition, value: e.target.value })}
               aria-label="Date"
             />
           )}
@@ -279,6 +278,13 @@ function ConditionRow({
       <button type="button" className="filter__remove" onClick={onRemove} aria-label="Remove condition">
         ×
       </button>
+
+      {status.state === 'invalid' && (
+        <span className="filter__problem" role="alert">
+          {status.message} Not applied until fixed.
+        </span>
+      )}
+      {status.state === 'incomplete' && <span className="filter__hint">Not applied yet</span>}
     </div>
   );
 }

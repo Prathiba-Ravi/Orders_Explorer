@@ -1,4 +1,5 @@
 import { CHANNELS, PAYMENT_METHODS, PRIORITIES, REGIONS, STATUSES } from '../data/types';
+import { CHANNEL_LABEL, PAYMENT_LABEL, REGION_LABEL, STATUS_LABEL } from '../orders/labels';
 import type { DateField, EnumField, NumberField, TextField } from './types';
 
 export interface FieldMeta {
@@ -29,11 +30,12 @@ export const PRIORITY_FILTER_OPTIONS: readonly { value: string; label: string }[
   { value: 'none', label: 'None' },
 ];
 
+/** Same sentence-case labels the grid shows, so the filter and the grid read alike. */
 export const ENUM_OPTIONS: Record<EnumField, readonly { value: string; label: string }[]> = {
-  status: STATUSES.map((s) => ({ value: s, label: s })),
-  region: REGIONS.map((r) => ({ value: r, label: r })),
-  channel: CHANNELS.map((c) => ({ value: c, label: c })),
-  paymentMethod: PAYMENT_METHODS.map((p) => ({ value: p, label: p })),
+  status: STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+  region: REGIONS.map((r) => ({ value: r, label: REGION_LABEL[r] })),
+  channel: CHANNELS.map((c) => ({ value: c, label: CHANNEL_LABEL[c] })),
+  paymentMethod: PAYMENT_METHODS.map((p) => ({ value: p, label: PAYMENT_LABEL[p] })),
   priority: PRIORITY_FILTER_OPTIONS,
 };
 

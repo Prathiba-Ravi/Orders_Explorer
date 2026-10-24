@@ -1,83 +1,107 @@
 import type { Order } from '../data/types';
-import type { FilterCondition, FilterGroup, FilterRoot } from './types';
+import { parseDateInput } from './dates';
+import { conditionStatus, parseFilterNumber } from './status';
+import type { DateCondition, FilterCondition, FilterGroup, FilterRoot, NumberCondition, TextCondition } from './types';
 
 export type OrderPredicate = (order: Order) => boolean;
 
-function matchText(order: Order, c: Extract<FilterCondition, { kind: 'text' }>): boolean {
-  const raw =
+function compileText(c: TextCondition): OrderPredicate {
+  const q = c.value.trim();
+  // Order ids are stored upper-case, the other text keys are pre-lowered by normalize().
+  const read: (o: Order) => string =
     c.field === 'id'
-      ? order.id.toLowerCase()
+      ? (o) => o.id
       : c.field === 'customer'
-        ? order.customerKey
+        ? (o) => o.customerKey
         : c.field === 'email'
-          ? order.emailKey
-          : order.notesKey;
-  const q = c.value.trim().toLowerCase();
-  if (c.op === 'equals') return raw === q;
-  if (q === '') return c.op === 'notContains';
-  if (c.op === 'contains') return raw.includes(q);
-  return !raw.includes(q);
+          ? (o) => o.emailKey
+          : (o) => o.notesKey;
+  const needle = c.field === 'id' ? q.toUpperCase() : q.toLowerCase();
+  if (c.op === 'equals') return (o) => read(o) === needle;
+  if (c.op === 'contains') return (o) => read(o).includes(needle);
+  return (o) => !read(o).includes(needle); // notContains: empty notes pass
 }
 
-function matchNumber(order: Order, c: Extract<FilterCondition, { kind: 'number' }>): boolean {
-  const n = c.field === 'amount' ? order.amount : order.itemCount;
-  if (c.op === 'eq') return typeof c.value === 'number' && n === c.value;
-  if (c.op === 'gt') return typeof c.value === 'number' && n > c.value;
-  if (c.op === 'lt') return typeof c.value === 'number' && n < c.value;
-  if (typeof c.value === 'object') return n >= c.value.min && n <= c.value.max;
-  return false;
-}
-
-function matchDate(order: Order, c: Extract<FilterCondition, { kind: 'date' }>): boolean {
-  const ms = c.field === 'createdAt' ? order.createdAt : order.updatedAt;
-  if (ms === null) return false;
-  if (c.op === 'before' && typeof c.value === 'number') return ms < c.value;
-  if (c.op === 'after' && typeof c.value === 'number') return ms > c.value;
-  if (c.op === 'between' && typeof c.value === 'object') return ms >= c.value.min && ms <= c.value.max;
-  return false;
-}
-
-function matchEnum(order: Order, c: Extract<FilterCondition, { kind: 'enum' }>): boolean {
-  if (c.values.length === 0) return true;
-  const set = new Set(c.values);
-  if (c.field === 'priority') {
-    if (order.priority === null) return set.has('none');
-    return set.has(String(order.priority));
+function compileNumber(c: NumberCondition): OrderPredicate {
+  const read: (o: Order) => number = c.field === 'amount' ? (o) => o.amount : (o) => o.itemCount;
+  if (c.op === 'between') {
+    const min = parseFilterNumber(c.min)!;
+    const max = parseFilterNumber(c.max)!;
+    return (o) => {
+      const n = read(o);
+      return n >= min && n <= max;
+    };
   }
-  const v =
-    c.field === 'status'
-      ? order.status
-      : c.field === 'region'
-        ? order.region
-        : c.field === 'channel'
-          ? order.channel
-          : order.paymentMethod;
-  return set.has(v);
+  const v = parseFilterNumber(c.value)!;
+  if (c.op === 'eq') return (o) => Math.abs(read(o) - v) < 0.005; // amounts are whole paise
+  if (c.op === 'gt') return (o) => read(o) > v;
+  return (o) => read(o) < v;
 }
 
-export function compileCondition(c: FilterCondition): OrderPredicate {
+function compileDate(c: DateCondition): OrderPredicate {
+  const read: (o: Order) => number | null = c.field === 'createdAt' ? (o) => o.createdAt : (o) => o.updatedAt;
+  if (c.op === 'between') {
+    const from = parseDateInput(c.from)!;
+    const to = parseDateInput(c.to)!;
+    return (o) => {
+      const ms = read(o);
+      return ms !== null && ms >= from.start && ms <= to.end; // both days included in full
+    };
+  }
+  const day = parseDateInput(c.value)!;
+  // "before" = before that day starts, "after" = after that day ends. Orders with no date never match.
+  if (c.op === 'before') {
+    return (o) => {
+      const ms = read(o);
+      return ms !== null && ms < day.start;
+    };
+  }
+  return (o) => {
+    const ms = read(o);
+    return ms !== null && ms > day.end;
+  };
+}
+
+/** A predicate for a ready condition, or null when it is incomplete/invalid (and so ignored). */
+export function compileCondition(c: FilterCondition): OrderPredicate | null {
+  if (conditionStatus(c).state !== 'ok') return null;
   switch (c.kind) {
     case 'text':
-      return (o) => matchText(o, c);
+      return compileText(c);
     case 'number':
-      return (o) => matchNumber(o, c);
+      return compileNumber(c);
     case 'date':
-      return (o) => matchDate(o, c);
-    case 'enum':
-      return (o) => matchEnum(o, c);
+      return compileDate(c);
+    case 'enum': {
+      const wanted = new Set(c.values);
+      if (c.field === 'priority') {
+        return (o) => wanted.has(o.priority === null ? 'none' : String(o.priority));
+      }
+      const read: (o: Order) => string =
+        c.field === 'status'
+          ? (o) => o.status
+          : c.field === 'region'
+            ? (o) => o.region
+            : c.field === 'channel'
+              ? (o) => o.channel
+              : (o) => o.paymentMethod;
+      return (o) => wanted.has(read(o));
+    }
   }
 }
 
-/** OR within a group. Empty group matches everything. */
-export function compileGroup(group: FilterGroup): OrderPredicate {
-  const parts = group.conditions.map(compileCondition);
-  if (parts.length === 0) return () => true;
+/** OR inside a group. A group with no ready condition is skipped (null). */
+export function compileGroup(group: FilterGroup): OrderPredicate | null {
+  const parts = group.conditions.map(compileCondition).filter((p): p is OrderPredicate => p !== null);
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0]!;
   return (o) => parts.some((p) => p(o));
 }
 
-/** AND across groups. No groups matches everything. */
-export function compileFilter(root: FilterRoot): OrderPredicate {
-  if (root.groups.length === 0) return () => true;
-  const groups = root.groups.map(compileGroup);
+/** AND across groups. null means nothing to filter by: every row passes. */
+export function compileFilter(root: FilterRoot): OrderPredicate | null {
+  const groups = root.groups.map(compileGroup).filter((p): p is OrderPredicate => p !== null);
+  if (groups.length === 0) return null;
+  if (groups.length === 1) return groups[0]!;
   return (o) => groups.every((g) => g(o));
 }

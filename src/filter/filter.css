@@ -153,3 +153,50 @@
 .chips__remove:hover {
   background: rgb(59 91 219 / 15%);
 }
+
+.chips__group,
+.chips__pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chips__op {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.chips__op--and {
+  margin: 0 2px;
+  color: var(--accent);
+}
+
+/* Ignored conditions stay visible but look unfinished. */
+.chips__item--incomplete {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-2);
+}
+
+.chips__item--invalid {
+  background: #fff1f1;
+  border: 1px solid #f3b8b8;
+  color: var(--danger);
+}
+
+.filter__problem {
+  color: var(--danger);
+  font-size: var(--fs-small);
+}
+
+.filter__hint {
+  color: var(--ink-3);
+  font-size: var(--fs-small);
+}
+
+.filter__input--invalid {
+  border-color: var(--danger);
+}

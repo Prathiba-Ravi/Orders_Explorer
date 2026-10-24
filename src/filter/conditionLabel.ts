@@ -1,34 +1,46 @@
-import { CHANNEL_LABEL, PAYMENT_LABEL, REGION_LABEL, STATUS_LABEL } from '../orders/labels';
-import { fieldMeta } from './fields';
-import type { FilterCondition } from './types';
+import { formatCount, formatDateUTC, formatINR } from '../lib/format';
+import { parseDateInput } from './dates';
+import { ENUM_OPTIONS, fieldMeta } from './fields';
+import { parseFilterNumber } from './status';
+import type { FilterCondition, NumberField } from './types';
 
-function enumLabel(field: string, value: string): string {
-  if (field === 'status') return STATUS_LABEL[value as keyof typeof STATUS_LABEL] ?? value;
-  if (field === 'region') return REGION_LABEL[value as keyof typeof REGION_LABEL] ?? value;
-  if (field === 'channel') return CHANNEL_LABEL[value as keyof typeof CHANNEL_LABEL] ?? value;
-  if (field === 'paymentMethod') return PAYMENT_LABEL[value as keyof typeof PAYMENT_LABEL] ?? value;
-  if (field === 'priority' && value === 'none') return 'None';
-  return value;
+/** Shown in place of a value that has not been entered yet. */
+const BLANK = '…';
+
+function numberText(field: NumberField, text: string): string {
+  const n = parseFilterNumber(text);
+  if (n === null) return BLANK;
+  return field === 'amount' ? formatINR(n) : formatCount(n);
 }
 
+function dateText(text: string): string {
+  const day = parseDateInput(text);
+  return day ? formatDateUTC(day.start) : BLANK;
+}
+
+/** The chip text for a condition, e.g. `Amount between ₹1,000.00 and ₹2,500.00`. */
 export function conditionLabel(c: FilterCondition): string {
-  const meta = fieldMeta(c.field);
-  const name = meta?.label ?? c.field;
+  const name = fieldMeta(c.field)?.label ?? c.field;
   switch (c.kind) {
-    case 'text':
-      if (c.op === 'contains') return `${name} contains "${c.value}"`;
-      if (c.op === 'notContains') return `${name} does not contain "${c.value}"`;
-      return `${name} equals "${c.value}"`;
-    case 'number':
-      if (c.op === 'eq') return `${name} = ${c.value}`;
-      if (c.op === 'gt') return `${name} > ${c.value}`;
-      if (c.op === 'lt') return `${name} < ${c.value}`;
-      return `${name} between ${typeof c.value === 'object' ? `${c.value.min} and ${c.value.max}` : ''}`;
-    case 'date':
-      if (c.op === 'before') return `${name} before`;
-      if (c.op === 'after') return `${name} after`;
-      return `${name} between dates`;
-    case 'enum':
-      return `${name} is ${c.values.map((v) => enumLabel(c.field, v)).join(' or ')}`;
+    case 'text': {
+      const v = c.value.trim() === '' ? BLANK : `“${c.value.trim()}”`;
+      if (c.op === 'contains') return `${name} contains ${v}`;
+      if (c.op === 'notContains') return `${name} does not contain ${v}`;
+      return `${name} is ${v}`;
+    }
+    case 'number': {
+      if (c.op === 'between') return `${name} between ${numberText(c.field, c.min)} and ${numberText(c.field, c.max)}`;
+      const v = numberText(c.field, c.value);
+      return c.op === 'eq' ? `${name} = ${v}` : c.op === 'gt' ? `${name} > ${v}` : `${name} < ${v}`;
+    }
+    case 'date': {
+      if (c.op === 'between') return `${name} between ${dateText(c.from)} and ${dateText(c.to)}`;
+      return `${name} ${c.op} ${dateText(c.value)}`;
+    }
+    case 'enum': {
+      const options = ENUM_OPTIONS[c.field];
+      const labels = c.values.map((v) => options.find((o) => o.value === v)?.label ?? v);
+      return `${name} is ${labels.length === 0 ? BLANK : labels.join(' or ')}`;
+    }
   }
 }
