@@ -39,6 +39,43 @@
   justify-content: flex-end;
 }
 
+.grid__hbtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: calc(100% + 20px);
+  min-width: 0;
+  height: 100%;
+  margin: 0 -10px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.grid__hbtn:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.grid__hcell.is-right .grid__hbtn {
+  flex-direction: row-reverse;
+}
+
+.grid__hcell[aria-sort='ascending'],
+.grid__hcell[aria-sort='descending'] {
+  color: var(--ink);
+}
+
+.grid__arrow {
+  flex: none;
+  color: var(--accent);
+}
+
 .grid__hlabel {
   overflow: hidden;
   text-overflow: ellipsis;

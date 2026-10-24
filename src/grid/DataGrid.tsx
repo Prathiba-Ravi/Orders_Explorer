@@ -1,5 +1,5 @@
-import { memo, useMemo, type CSSProperties, type ReactNode } from 'react';
-import type { GridColumn } from './types';
+import { memo, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
+import type { GridColumn, SortState } from './types';
 import { useVirtualWindow } from './useVirtualWindow';
 import './grid.css';
 
@@ -13,19 +13,29 @@ interface DataGridProps<T> {
   view: ArrayLike<number>;
   getRowId: (row: T) => string | number;
   label: string;
+  sort: SortState | null;
+  /** Called with the id of the clicked (or Enter/Space-activated) sortable header. */
+  onSort: (columnId: string) => void;
 }
 
 /**
  * A hand-written virtualized grid. Only the rows near the viewport exist in the DOM;
  * column widths live in one CSS variable so rows never re-render for layout.
  */
-export function DataGrid<T>({ columns, data, view, getRowId, label }: DataGridProps<T>) {
+export function DataGrid<T>({ columns, data, view, getRowId, label, sort, onSort }: DataGridProps<T>) {
   const count = view.length;
   const { scrollerRef, start, end, onScroll, totalHeight } = useVirtualWindow({
     count,
     rowHeight: ROW_HEIGHT,
     headerHeight: HEADER_HEIGHT,
   });
+
+  // A new sort order starts from the top, like every spreadsheet does.
+  const sortColumn = sort?.columnId;
+  const sortDir = sort?.dir;
+  useEffect(() => {
+    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+  }, [scrollerRef, sortColumn, sortDir]);
 
   const template = useMemo(() => columns.map((c) => `${c.width}px`).join(' '), [columns]);
   const totalWidth = useMemo(() => columns.reduce((sum, c) => sum + c.width, 0), [columns]);
@@ -51,7 +61,7 @@ export function DataGrid<T>({ columns, data, view, getRowId, label }: DataGridPr
     >
       <div className="grid__header" role="row" aria-rowindex={1}>
         {columns.map((col) => (
-          <HeaderCell key={col.id} column={col} />
+          <HeaderCell key={col.id} column={col} sort={sort?.columnId === col.id ? sort.dir : null} onSort={onSort} />
         ))}
       </div>
       <div className="grid__body" role="rowgroup" style={{ height: totalHeight }}>
@@ -61,15 +71,34 @@ export function DataGrid<T>({ columns, data, view, getRowId, label }: DataGridPr
   );
 }
 
-function HeaderCell<T>({ column }: { column: GridColumn<T> }) {
+interface HeaderCellProps<T> {
+  column: GridColumn<T>;
+  sort: SortState['dir'] | null;
+  onSort: (columnId: string) => void;
+}
+
+function HeaderCell<T>({ column, sort, onSort }: HeaderCellProps<T>) {
+  const right = column.align === 'right';
+  const ariaSort = sort === 'asc' ? 'ascending' : sort === 'desc' ? 'descending' : column.sortable ? 'none' : undefined;
   return (
-    <div
-      role="columnheader"
-      className={`grid__hcell${column.align === 'right' ? ' is-right' : ''}`}
-      title={column.header}
-    >
-      <span className="grid__hlabel">{column.header}</span>
+    <div role="columnheader" className={`grid__hcell${right ? ' is-right' : ''}`} aria-sort={ariaSort} title={column.header}>
+      {column.sortable ? (
+        <button type="button" className="grid__hbtn" onClick={() => onSort(column.id)}>
+          <span className="grid__hlabel">{column.header}</span>
+          {sort && <SortArrow dir={sort} />}
+        </button>
+      ) : (
+        <span className="grid__hlabel">{column.header}</span>
+      )}
     </div>
+  );
+}
+
+function SortArrow({ dir }: { dir: SortState['dir'] }) {
+  return (
+    <svg className="grid__arrow" width="9" height="9" viewBox="0 0 9 9" aria-hidden="true">
+      <path d={dir === 'asc' ? 'M4.5 1 8 7H1z' : 'M4.5 8 1 2h7z'} fill="currentColor" />
+    </svg>
   );
 }
 

@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { useOrders } from './data/useOrders';
+import type { SortState } from './grid/types';
 import { formatCount } from './lib/format';
 import { OrdersGrid } from './orders/OrdersGrid';
+import { DEFAULT_SORT, nextSort } from './orders/sort';
 import './App.css';
 
 export function App() {
   const data = useOrders();
+  const [sort, setSort] = useState<SortState | null>(DEFAULT_SORT);
 
   return (
     <div className="app">
@@ -27,7 +31,7 @@ export function App() {
           </button>
         </div>
       )}
-      {data.status === 'ready' && <OrdersGrid orders={data.orders} />}
+      {data.status === 'ready' && <OrdersGrid orders={data.orders} sort={sort} onSort={(id) => setSort((cur) => nextSort(cur, id))} />}
     </div>
   );
 }
