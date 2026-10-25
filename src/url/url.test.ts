@@ -111,8 +111,8 @@ describe('parseUrl / buildSearch', () => {
     expect(buildSearch(DEFAULT_URL_STATE)).toBe('');
     const { state, problems } = parseUrl('');
     expect(problems).toEqual([]);
-    expect(state.sort).toEqual({ columnId: 'createdAt', dir: 'desc' });
-    expect(state.pinnedId).toBe('id');
+    expect(state.sort).toBeNull(); // unsorted: original order
+    expect(state.pinnedId).toBeNull();
     expect(state.selection.size).toBe(0);
     expect(state.filter.groups).toHaveLength(0);
   });
@@ -132,10 +132,10 @@ describe('parseUrl / buildSearch', () => {
     expect([...state.selection].sort((a, b) => a - b)).toEqual([1, 2, 3, 40, 41, 9999]);
   });
 
-  it('"nothing pinned" is remembered, and the default pin is not written', () => {
-    expect(buildSearch({ ...DEFAULT_URL_STATE, pinnedId: null })).toBe('p=none');
-    expect(parseUrl('?p=none').state.pinnedId).toBeNull();
-    expect(buildSearch({ ...DEFAULT_URL_STATE, pinnedId: 'id' })).toBe('');
+  it('only what the user changed is written to the URL', () => {
+    expect(buildSearch({ ...DEFAULT_URL_STATE, pinnedId: 'region' })).toBe('p=region');
+    expect(buildSearch({ ...DEFAULT_URL_STATE, sort: { columnId: 'amount', dir: 'desc' } })).toBe('s=amount.desc');
+    expect(parseUrl('?p=region').state.pinnedId).toBe('region');
   });
 
   it('a broken link never throws: each bad part falls back and says so', () => {
@@ -154,8 +154,9 @@ describe('parseUrl / buildSearch', () => {
       const { state, problems } = parseUrl(search);
       expect(problems, search).toHaveLength(1);
       expect(problems[0], search).toContain(word);
-      // everything else is the default view
-      expect(state.sort.columnId === 'createdAt' || search.startsWith('?s=') === false).toBe(true);
+      // the bad part fell back to its default
+      if (search.startsWith('?s=')) expect(state.sort).toBeNull();
+      if (search.startsWith('?p=')) expect(state.pinnedId).toBeNull();
     }
   });
 
@@ -163,7 +164,7 @@ describe('parseUrl / buildSearch', () => {
     const { state, problems } = parseUrl('?s=amount.desc&p=nonsense&sel=1-3');
     expect(problems).toHaveLength(1);
     expect(state.sort).toEqual({ columnId: 'amount', dir: 'desc' });
-    expect(state.pinnedId).toBe('id');
+    expect(state.pinnedId).toBeNull();
     expect([...state.selection]).toEqual([1, 2, 3, 4]); // "1-3" = start at 1, three more
   });
 

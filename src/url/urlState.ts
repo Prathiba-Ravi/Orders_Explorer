@@ -8,20 +8,18 @@ import { decodeSelection, encodeSelection } from './selectionCodec';
 /** What the URL remembers: the filter, the sort, the pinned column and the selected rows. */
 export interface UrlState {
   filter: FilterRoot;
-  sort: SortState;
+  /** null = unsorted (original order). */
+  sort: SortState | null;
   /** null = nothing pinned. */
   pinnedId: string | null;
   /** Selected orders, by numeric id. */
   selection: ReadonlySet<number>;
 }
 
-/** The order id column is pinned unless the user says otherwise. */
-export const DEFAULT_PINNED_ID = 'id';
-
 export const DEFAULT_URL_STATE: UrlState = {
   filter: EMPTY_FILTER,
   sort: DEFAULT_SORT,
-  pinnedId: DEFAULT_PINNED_ID,
+  pinnedId: null,
   selection: new Set(),
 };
 
@@ -59,14 +57,13 @@ export function parseUrl(search: string): ParsedUrl {
   if (s !== null) {
     const decoded = parseSort(s);
     if (decoded) sort = decoded;
-    else problems.push('The sort in this link is not valid, so orders are sorted newest first.');
+    else problems.push('The sort in this link is not valid, so orders are shown in their original order.');
   }
 
   const p = params.get('p');
   if (p !== null) {
-    if (p === 'none') pinnedId = null;
-    else if (COLUMN_IDS.has(p)) pinnedId = p;
-    else problems.push('The pinned column in this link is not valid, so the default column is pinned.');
+    if (COLUMN_IDS.has(p)) pinnedId = p;
+    else problems.push('The pinned column in this link is not valid, so no column is pinned.');
   }
 
   const sel = params.get('sel');
@@ -84,10 +81,8 @@ export function buildSearch(state: UrlState): string {
   const params = new URLSearchParams();
   const f = encodeFilter(state.filter);
   if (f) params.set('f', f);
-  if (state.sort.columnId !== DEFAULT_SORT.columnId || state.sort.dir !== DEFAULT_SORT.dir) {
-    params.set('s', `${state.sort.columnId}.${state.sort.dir}`);
-  }
-  if (state.pinnedId !== DEFAULT_PINNED_ID) params.set('p', state.pinnedId ?? 'none');
+  if (state.sort) params.set('s', `${state.sort.columnId}.${state.sort.dir}`);
+  if (state.pinnedId) params.set('p', state.pinnedId);
   if (state.selection.size > 0) params.set('sel', encodeSelection(state.selection));
   return params.toString();
 }

@@ -55,6 +55,8 @@ Sketches are in `design/`. Changes made while building:
   height on a 13-inch screen; active filters stay visible as chips (with and/or joiners).
 - Details open in a **side panel** that shares the width, instead of an overlay drawer.
 - No Currency column (it is always INR; amounts show ₹), still in details and the CSV.
+- The grid starts **unsorted and unpinned** (original order); **Reset view** returns exactly there (and scrolls to the top-left).
+- A pinned column moves to the left edge like a frozen pane; the row checkboxes scroll away.
 - Added a keyboard shortcut list (`?`) and Shift+Arrow / Ctrl+A selection.
 
 ## Known issues

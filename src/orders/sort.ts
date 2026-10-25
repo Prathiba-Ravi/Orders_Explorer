@@ -97,5 +97,5 @@ export function nextSort(current: SortState | null, columnId: string): SortState
   return { columnId, dir: 'asc' };
 }
 
-/** Newest orders first. */
-export const DEFAULT_SORT: SortState = { columnId: 'createdAt', dir: 'desc' };
+/** The grid starts unsorted: orders appear in their original (file) order. */
+export const DEFAULT_SORT: SortState | null = null;

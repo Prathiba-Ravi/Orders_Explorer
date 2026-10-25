@@ -13,7 +13,7 @@ import { csvFilename, downloadCsv, ordersToCsv, selectedOrdersInOrder } from './
 import { OrderDetails } from './orders/OrderDetails';
 import { OrdersGrid } from './orders/OrdersGrid';
 import { createSorter, DEFAULT_SORT, nextSort } from './orders/sort';
-import { buildSearch, DEFAULT_PINNED_ID, parseUrl } from './url/urlState';
+import { buildSearch, parseUrl } from './url/urlState';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import './App.css';
 
@@ -29,13 +29,14 @@ export function App() {
   // Everything the URL remembers starts from the URL. A broken link falls back to defaults and says so.
   const [initial] = useState(() => parseUrl(window.location.search));
   const [filter, setFilter] = useState<FilterRoot>(initial.state.filter);
-  const [sort, setSort] = useState<SortState>(initial.state.sort);
+  const [sort, setSort] = useState<SortState | null>(initial.state.sort);
   const [pinnedColumnId, setPinnedColumnId] = useState<string | null>(initial.state.pinnedId);
   const [selected, setSelected] = useState<ReadonlySet<number>>(initial.state.selection);
   const [notices, setNotices] = useState<string[]>(initial.problems);
 
   // Not in the URL: column widths and the open panels.
   const [widths, setWidths] = useState<Record<string, number>>({});
+  const [resetToken, setResetToken] = useState(0);
   const [details, setDetails] = useState<Order | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -99,11 +100,15 @@ export function App() {
 
   const onWidthChange = useCallback((id: string, width: number) => setWidths((w) => ({ ...w, [id]: width })), []);
   const onTogglePin = useCallback((id: string) => setPinnedColumnId((cur) => (cur === id ? null : id)), []);
-  const onSort = useCallback((id: string) => setSort((cur) => nextSort(cur, id) as SortState), []);
-  const resetLayout = useCallback(() => {
+  const onSort = useCallback((id: string) => setSort((cur) => nextSort(cur, id)), []);
+  // The starting view: unsorted, default widths, nothing pinned, scrolled to the top-left.
+  // (Filters and the row selection have their own Clear buttons and are left alone.)
+  const viewIsDefault = sort === DEFAULT_SORT && Object.keys(widths).length === 0 && pinnedColumnId === null;
+  const resetView = useCallback(() => {
     setSort(DEFAULT_SORT);
     setWidths({});
-    setPinnedColumnId(DEFAULT_PINNED_ID);
+    setPinnedColumnId(null);
+    setResetToken((n) => n + 1);
   }, []);
 
   const deselectHidden = () => {
@@ -191,11 +196,16 @@ export function App() {
             </button>
             <button
               type="button"
-              className="btn btn--ghost"
-              title="Back to default sort, column widths and pinned column"
-              onClick={resetLayout}
+              className="btn"
+              disabled={viewIsDefault}
+              title={
+                viewIsDefault
+                  ? 'The view is already in its starting state'
+                  : 'Back to the starting view: no sort, default column widths, nothing pinned, scrolled to the top-left. Filters and selection are kept.'
+              }
+              onClick={resetView}
             >
-              Reset grid
+              Reset view
             </button>
             <button
               type="button"
@@ -269,6 +279,7 @@ export function App() {
               onWidthChange={onWidthChange}
               pinnedColumnId={pinnedColumnId}
               onTogglePin={onTogglePin}
+              resetToken={resetToken}
               detailsOrder={details}
               onOpenDetails={setDetails}
               selected={selected}

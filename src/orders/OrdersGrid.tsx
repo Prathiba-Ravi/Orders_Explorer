@@ -20,6 +20,8 @@ interface OrdersGridProps {
   /** Selected orders by numeric id. Owned by the parent so it can live in the URL. */
   selected: ReadonlySet<number>;
   onSelectedChange: (next: Set<number>) => void;
+  /** Changes when the view is reset: the grid scrolls back to the top-left. */
+  resetToken?: number;
   /** Shown in the grid area when no rows match. The grid stays mounted so the selection is kept. */
   emptyState?: ReactNode;
 }
@@ -37,6 +39,7 @@ export function OrdersGrid({
   onOpenDetails,
   selected,
   onSelectedChange,
+  resetToken,
   emptyState,
 }: OrdersGridProps) {
   const rowKey = useCallback((dataIndex: number) => orders[dataIndex]!.idNum, [orders]);
@@ -103,6 +106,7 @@ export function OrdersGrid({
       onFocusChange={setFocus}
       onOpenRow={openRow}
       emptyState={emptyState}
+      resetToken={resetToken}
     />
   );
 }
