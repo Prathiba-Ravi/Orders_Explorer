@@ -1,5 +1,5 @@
 import type { Order } from '../data/types';
-import { EMPTY, formatCount, formatDateTimeUTC, formatINR } from '../lib/format';
+import { EMPTY, formatCount, formatDateTimeUTC, formatINR, formatDateUTC } from '../lib/format';
 import { CHANNEL_LABEL, PAYMENT_LABEL, REGION_LABEL, STATUS_LABEL } from './labels';
 import './details.css';
 
@@ -22,7 +22,14 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
         <Row label="Email" value={order.email} />
         <Row label="Status" value={STATUS_LABEL[order.status]} />
         <Row label="Amount" value={formatINR(order.amount)} />
-        <Row label="Created (UTC)" value={formatDateTimeUTC(order.createdAt, true)} />
+        <Row
+          label="Created (UTC)"
+          value={
+            order.createdAtDateOnly
+              ? `${formatDateUTC(order.createdAt)} (time not recorded)`
+              : formatDateTimeUTC(order.createdAt, true)
+          }
+        />
         <Row
           label="Updated (UTC)"
           value={order.updatedAt === null ? EMPTY : formatDateTimeUTC(order.updatedAt, true)}

@@ -240,20 +240,35 @@
 }
 
 .grid__pin {
-  flex: none;
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  z-index: 2;
   width: 18px;
   height: 18px;
-  margin-right: 2px;
   padding: 0;
   border: 0;
   border-radius: 3px;
-  background: transparent;
-  opacity: 0.35;
+  background: var(--surface-2);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
-.grid__pin.is-on,
-.grid__pin:hover {
+/* Only on hover, keyboard focus, or the pinned column, so it never steals room from header labels. */
+.grid__hcell:hover .grid__pin,
+.grid__hcell:focus-within .grid__pin,
+.grid__pin.is-on {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.grid__pin:hover {
+  background: var(--line);
+}
+
+.grid__hcell.is-pinned .grid__hbtn {
+  padding-right: 28px;
 }
 
 .grid__pin.is-on {
