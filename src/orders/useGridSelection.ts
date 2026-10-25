@@ -1,13 +1,22 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 interface Options {
+  /** Rows currently shown, as indices into the data (already filtered and sorted). */
   view: ArrayLike<number>;
   rowKey: (dataIndex: number) => number;
+  /** The selection lives in the parent (so it can be kept in the URL and exported). */
+  selected: ReadonlySet<number>;
+  onChange: (next: Set<number>) => void;
 }
 
-export function useGridSelection({ view, rowKey }: Options) {
-  const [selected, setSelectedState] = useState(() => new Set<number>());
-  const [anchorViewIndex, setAnchorViewIndex] = useState<number | null>(null);
+export type SelectMode = 'replace' | 'toggle' | 'range';
+
+export function useGridSelection({ view, rowKey, selected, onChange }: Options) {
+  // Where Shift ranges start. It is a position in the current view, so it is meaningless after a re-sort or re-filter.
+  const anchor = useRef<number | null>(null);
+  useEffect(() => {
+    anchor.current = null;
+  }, [view]);
 
   const visibleKeys = useMemo(() => {
     const keys: number[] = [];
@@ -15,59 +24,41 @@ export function useGridSelection({ view, rowKey }: Options) {
     return keys;
   }, [view, rowKey]);
 
-  const isSelected = useCallback((key: number) => selected.has(key), [selected]);
-
-  const setSelected = useCallback((keys: Iterable<number>) => {
-    setSelectedState(new Set(keys));
-  }, []);
-
-  const toggleKey = useCallback((key: number) => {
-    setSelectedState((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
   const selectViewIndex = useCallback(
-    (viewIndex: number, mode: 'replace' | 'toggle' | 'range') => {
+    (viewIndex: number, mode: SelectMode, anchorFallback?: number) => {
       const key = rowKey(view[viewIndex]!);
       if (mode === 'replace') {
-        setSelectedState(new Set([key]));
-        setAnchorViewIndex(viewIndex);
-        return;
+        onChange(new Set([key]));
+        anchor.current = viewIndex;
+      } else if (mode === 'toggle') {
+        const next = new Set(selected);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        onChange(next);
+        anchor.current = viewIndex;
+      } else {
+        // Range: exactly the rows between the anchor and this row (so Shift+Arrow can also shrink it).
+        const from = anchor.current ?? anchorFallback ?? viewIndex;
+        if (anchor.current === null) anchor.current = from;
+        const next = new Set<number>();
+        for (let i = Math.min(from, viewIndex); i <= Math.max(from, viewIndex); i++) next.add(rowKey(view[i]!));
+        onChange(next);
       }
-      if (mode === 'toggle') {
-        toggleKey(key);
-        setAnchorViewIndex(viewIndex);
-        return;
-      }
-      setSelectedState((prev) => {
-        const next = new Set(prev);
-        const anchor = anchorViewIndex ?? viewIndex;
-        const lo = Math.min(anchor, viewIndex);
-        const hi = Math.max(anchor, viewIndex);
-        for (let i = lo; i <= hi; i++) next.add(rowKey(view[i]!));
-        return next;
-      });
     },
-    [anchorViewIndex, rowKey, toggleKey, view],
+    [onChange, rowKey, selected, view],
   );
 
+  /** Adds or removes every row currently shown. Rows hidden by a filter are left alone. */
   const selectAllVisible = useCallback(
     (on: boolean) => {
-      setSelectedState((prev) => {
-        const next = new Set(prev);
-        if (!on) {
-          for (const k of visibleKeys) next.delete(k);
-        } else {
-          for (const k of visibleKeys) next.add(k);
-        }
-        return next;
-      });
+      const next = new Set(selected);
+      for (const k of visibleKeys) {
+        if (on) next.add(k);
+        else next.delete(k);
+      }
+      onChange(next);
     },
-    [visibleKeys],
+    [onChange, selected, visibleKeys],
   );
 
   const selectionState = useMemo(() => {
@@ -78,12 +69,5 @@ export function useGridSelection({ view, rowKey }: Options) {
     return { set: selected, count: selected.size, visSelected, hidden: selected.size - visSelected, all, some };
   }, [selected, visibleKeys]);
 
-  return {
-    selection: selectionState,
-    isSelected,
-    selectViewIndex,
-    selectAllVisible,
-    setSelected,
-    toggleKey,
-  };
+  return { selection: selectionState, selectViewIndex, selectAllVisible };
 }

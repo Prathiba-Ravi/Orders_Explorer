@@ -18,7 +18,8 @@ export interface GridSelectionProps {
   selected: ReadonlySet<number>;
   allVisible: boolean;
   someVisible: boolean;
-  onSelectViewRow: (viewIndex: number, mode: 'replace' | 'toggle' | 'range') => void;
+  /** `anchorFallback` is where a Shift range starts when no anchor is set yet (Shift+Arrow from the focused row). */
+  onSelectViewRow: (viewIndex: number, mode: 'replace' | 'toggle' | 'range', anchorFallback?: number) => void;
   onSelectAllVisible: (on: boolean) => void;
   rowKeyAtViewIndex: (viewIndex: number) => number;
 }
@@ -109,12 +110,22 @@ export function DataGrid<T>({
     if (!focus || count === 0) return;
     const page = Math.max(1, Math.floor(((scrollerRef.current?.clientHeight ?? 400) - HEADER_HEIGHT) / ROW_HEIGHT));
 
-    if (e.key === 'ArrowDown') {
+    const cmd = e.ctrlKey || e.metaKey;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.shiftKey && selection) {
+      // Shift+Arrow extends the selection from where it started, like a spreadsheet.
+      e.preventDefault();
+      const row = Math.max(0, Math.min(count - 1, focus.viewRow + (e.key === 'ArrowDown' ? 1 : -1)));
+      moveFocus({ ...focus, viewRow: row });
+      selection.onSelectViewRow(row, 'range', focus.viewRow);
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       moveFocus({ ...focus, viewRow: focus.viewRow + 1 });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       moveFocus({ ...focus, viewRow: focus.viewRow - 1 });
+    } else if (cmd && e.key.toLowerCase() === 'a' && selection) {
+      e.preventDefault();
+      selection.onSelectAllVisible(true);
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       moveFocus({ ...focus, col: focus.col + 1 });

@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { DataGrid, type FocusCell } from '../grid/DataGrid';
 import type { SortState } from '../grid/types';
 import type { Order } from '../data/types';
 import { ORDER_COLUMNS } from './columns';
-import { createSorter } from './sort';
-import { useGridSelection } from './useGridSelection';
+import { useGridSelection, type SelectMode } from './useGridSelection';
 
 interface OrdersGridProps {
   orders: readonly Order[];
+  /** Rows to show: filtered and sorted, as indices into `orders`. */
   view: ArrayLike<number>;
   sort: SortState | null;
   onSort: (columnId: string) => void;
@@ -17,8 +17,9 @@ interface OrdersGridProps {
   onTogglePin: (columnId: string) => void;
   detailsOrder: Order | null;
   onOpenDetails: (order: Order | null) => void;
-  /** Called when the selection changes: how many rows are selected, and how many of those the filter hides. */
-  onSelectionCountChange?: (count: number, hidden: number) => void;
+  /** Selected orders by numeric id. Owned by the parent so it can live in the URL. */
+  selected: ReadonlySet<number>;
+  onSelectedChange: (next: Set<number>) => void;
   /** Shown in the grid area when no rows match. The grid stays mounted so the selection is kept. */
   emptyState?: ReactNode;
 }
@@ -34,29 +35,25 @@ export function OrdersGrid({
   onTogglePin,
   detailsOrder,
   onOpenDetails,
-  onSelectionCountChange,
+  selected,
+  onSelectedChange,
   emptyState,
 }: OrdersGridProps) {
-  const sorter = useMemo(() => createSorter(orders), [orders]);
-  const sortedView = useMemo(() => sorter.sortSubset(view, sort), [sorter, view, sort]);
-
   const rowKey = useCallback((dataIndex: number) => orders[dataIndex]!.idNum, [orders]);
   const { selection, selectViewIndex, selectAllVisible } = useGridSelection({
-    view: sortedView,
+    view,
     rowKey,
+    selected,
+    onChange: onSelectedChange,
   });
 
   const [focus, setFocus] = useState<FocusCell | null>(null);
 
   useEffect(() => {
-    onSelectionCountChange?.(selection.count, selection.hidden);
-  }, [onSelectionCountChange, selection.count, selection.hidden]);
-
-  useEffect(() => {
-    if (focus && focus.viewRow >= sortedView.length) {
-      setFocus(sortedView.length > 0 ? { viewRow: sortedView.length - 1, col: focus.col } : null);
+    if (focus && focus.viewRow >= view.length) {
+      setFocus(view.length > 0 ? { viewRow: view.length - 1, col: focus.col } : null);
     }
-  }, [sortedView.length, focus]);
+  }, [view.length, focus]);
 
   useEffect(() => {
     if (!detailsOrder) return;
@@ -72,17 +69,17 @@ export function OrdersGrid({
 
   const openRow = useCallback(
     (viewIndex: number) => {
-      const order = orders[sortedView[viewIndex]!];
+      const order = orders[view[viewIndex]!];
       if (order) onOpenDetails(order);
     },
-    [onOpenDetails, orders, sortedView],
+    [onOpenDetails, orders, view],
   );
 
   return (
     <DataGrid
       columns={ORDER_COLUMNS}
       data={orders}
-      view={sortedView}
+      view={view}
       getRowId={(o) => o.idNum}
       label="Orders"
       sort={sort}
@@ -95,12 +92,12 @@ export function OrdersGrid({
         selected: selection.set,
         allVisible: selection.all,
         someVisible: selection.some,
-        onSelectViewRow: (viewIndex, mode) => {
-          selectViewIndex(viewIndex, mode);
+        onSelectViewRow: (viewIndex: number, mode: SelectMode, anchorFallback?: number) => {
+          selectViewIndex(viewIndex, mode, anchorFallback);
           setFocus((f) => f ?? { viewRow: viewIndex, col: 1 });
         },
         onSelectAllVisible: selectAllVisible,
-        rowKeyAtViewIndex: (viewIndex) => rowKey(sortedView[viewIndex]!),
+        rowKeyAtViewIndex: (viewIndex) => rowKey(view[viewIndex]!),
       }}
       focus={focus}
       onFocusChange={setFocus}
