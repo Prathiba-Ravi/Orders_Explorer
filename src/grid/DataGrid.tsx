@@ -1,4 +1,4 @@
-import { memo, useEffect, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { GridColumn, SortState } from './types';
 import { MIN_COLUMN_WIDTH, useColumnResize } from './useColumnResize';
 import { useVirtualWindow } from './useVirtualWindow';
@@ -7,10 +7,12 @@ import './grid.css';
 export const ROW_HEIGHT = 28;
 export const HEADER_HEIGHT = 32;
 export const SELECT_COL_WIDTH = 36;
+/** A pinned column wider than this would cover most of a 13-inch screen, so it is not kept in place. */
+export const MAX_PINNED_WIDTH = 360;
 
 export interface FocusCell {
   viewRow: number;
-  /** 0 = selection column, 1+ = index in `columns` + 1 */
+  /** 0 = selection column, 1+ = position among the columns as displayed (the pinned column is first). */
   col: number;
 }
 
@@ -42,6 +44,8 @@ interface DataGridProps<T> {
   onOpenRow?: (viewIndex: number) => void;
   /** Shown over the empty body when `view` has no rows. The grid itself stays mounted, so selection survives. */
   emptyState?: ReactNode;
+  /** Changes when the owner resets the view: the grid scrolls back to the top-left. */
+  resetToken?: number;
 }
 
 export function DataGrid<T>({
@@ -61,6 +65,7 @@ export function DataGrid<T>({
   onFocusChange,
   onOpenRow,
   emptyState,
+  resetToken = 0,
 }: DataGridProps<T>) {
   const count = view.length;
   const { scrollerRef, start, end, onScroll, totalHeight } = useVirtualWindow({
@@ -74,27 +79,33 @@ export function DataGrid<T>({
   useEffect(() => {
     if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
   }, [scrollerRef, sortColumn, sortDir]);
+  // Reset also returns to the left edge.
+  useEffect(() => {
+    scrollerRef.current?.scrollTo({ left: 0, top: 0 });
+  }, [scrollerRef, resetToken]);
+
+  // The shadow next to the pinned column only shows once content is sliding underneath it.
+  const [scrolledX, setScrolledX] = useState(false);
 
   const resize = useColumnResize(onWidthChange);
   const widthOf = (c: GridColumn<T>) => (resize.draft?.id === c.id ? resize.draft.width : (widths[c.id] ?? c.width));
-  const dataTemplate = columns.map((c) => `${widthOf(c)}px`).join(' ');
-  const dataWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
+
+  // A pinned column moves to the front (right after the checkbox) and sticks to the left edge,
+  // like frozen panes in a spreadsheet. If it is too wide to be useful it is left where it is.
+  const pinnedColumn = pinnedColumnId ? columns.find((c) => c.id === pinnedColumnId) : undefined;
+  const stuckId = pinnedColumn && widthOf(pinnedColumn) <= MAX_PINNED_WIDTH ? pinnedColumn.id : null;
+  const ordered = useMemo(() => {
+    const stuck = stuckId ? columns.find((c) => c.id === stuckId) : undefined;
+    return stuck ? [stuck, ...columns.filter((c) => c !== stuck)] : columns;
+  }, [columns, stuckId]);
+
+  const dataTemplate = ordered.map((c) => `${widthOf(c)}px`).join(' ');
+  const dataWidth = ordered.reduce((sum, c) => sum + widthOf(c), 0);
   const gridWidth = SELECT_COL_WIDTH + dataWidth;
   const template = `${SELECT_COL_WIDTH}px ${dataTemplate}`;
   const style = { '--cols': template, '--grid-width': `${gridWidth}px` } as CSSProperties;
 
-  const stickyLeft = (colId: string | 'select'): number | undefined => {
-    if (colId === 'select') return 0;
-    if (pinnedColumnId !== colId) return undefined;
-    let left = SELECT_COL_WIDTH;
-    for (const c of columns) {
-      if (c.id === colId) return left;
-      left += widthOf(c);
-    }
-    return undefined;
-  };
-
-  const colCount = columns.length + 1;
+  const colCount = ordered.length + 1;
 
   const moveFocus = (cell: FocusCell) => {
     const row = Math.max(0, Math.min(count - 1, cell.viewRow));
@@ -165,11 +176,9 @@ export function DataGrid<T>({
         key={key}
         row={row}
         viewIndex={i}
-        columns={columns}
+        columns={ordered}
         selected={selected}
-        pinnedColumnId={pinnedColumnId}
-        stickyLeft={stickyLeft}
-        widthOf={widthOf}
+        stuckColumnId={stuckId}
         focus={focus}
         onRowClick={
           selection
@@ -198,7 +207,12 @@ export function DataGrid<T>({
         aria-rowcount={count + 1}
         aria-colcount={colCount}
         tabIndex={0}
-        onScroll={onScroll}
+        data-scrolled-x={scrolledX ? '' : undefined}
+        onScroll={(e) => {
+          onScroll();
+          const moved = e.currentTarget.scrollLeft > 0;
+          setScrolledX((prev) => (prev === moved ? prev : moved));
+        }}
         onKeyDown={onKeyDown}
         onFocus={() => {
           if (!focus && count > 0) onFocusChange({ viewRow: 0, col: 1 });
@@ -206,8 +220,8 @@ export function DataGrid<T>({
         style={style}
       >
         <div className="grid__header" role="row" aria-rowindex={1}>
-          <SelectHeaderCell selection={selection} stickyLeft={0} />
-          {columns.map((col, idx) => (
+          <SelectHeaderCell selection={selection} />
+          {ordered.map((col, idx) => (
             <HeaderCell
               key={col.id}
               column={col}
@@ -218,8 +232,8 @@ export function DataGrid<T>({
               resize={resize}
               onReset={() => onWidthChange(col.id, col.width)}
               pinned={pinnedColumnId === col.id}
+              stuck={stuckId === col.id}
               onTogglePin={onTogglePin ? () => onTogglePin(col.id) : undefined}
-              stickyLeft={stickyLeft(col.id)}
             />
           ))}
         </div>
@@ -248,18 +262,11 @@ function handleRowClick(e: MouseEvent, viewIndex: number, selection: GridSelecti
   else selection.onSelectViewRow(viewIndex, 'replace');
 }
 
-function SelectHeaderCell({
-  selection,
-  stickyLeft,
-}: {
-  selection?: GridSelectionProps;
-  stickyLeft: number;
-}) {
+function SelectHeaderCell({ selection }: { selection?: GridSelectionProps }) {
   return (
     <div
       role="columnheader"
-      className="grid__hcell grid__hcell--select is-pinned"
-      style={{ left: stickyLeft }}
+      className="grid__hcell grid__hcell--select"
       aria-label="Select rows"
     >
       {selection && (
@@ -286,9 +293,11 @@ interface HeaderCellProps<T> {
   onSort: (columnId: string) => void;
   resize: ReturnType<typeof useColumnResize>;
   onReset: () => void;
+  /** The user pinned this column. */
   pinned: boolean;
+  /** It is also actually held in place (not too wide). */
+  stuck: boolean;
   onTogglePin?: () => void;
-  stickyLeft?: number;
 }
 
 function HeaderCell<T>({
@@ -299,8 +308,8 @@ function HeaderCell<T>({
   resize,
   onReset,
   pinned,
+  stuck,
   onTogglePin,
-  stickyLeft: left,
 }: HeaderCellProps<T>) {
   const minWidth = column.minWidth ?? MIN_COLUMN_WIDTH;
   const right = column.align === 'right';
@@ -308,8 +317,7 @@ function HeaderCell<T>({
   return (
     <div
       role="columnheader"
-      className={`grid__hcell${right ? ' is-right' : ''}${pinned ? ' is-pinned' : ''}`}
-      style={left !== undefined ? { left } : undefined}
+      className={`grid__hcell${right ? ' is-right' : ''}${stuck ? ' is-pinned' : ''}`}
       aria-sort={ariaSort}
       title={column.header}
     >
@@ -318,6 +326,13 @@ function HeaderCell<T>({
           type="button"
           className={`grid__pin${pinned ? ' is-on' : ''}`}
           aria-label={pinned ? `Unpin ${column.header}` : `Pin ${column.header}`}
+          title={
+            pinned && !stuck
+              ? `Pinned, but wider than ${MAX_PINNED_WIDTH}px so it scrolls with the others. Make it narrower to keep it in view.`
+              : pinned
+                ? 'Unpin column'
+                : 'Pin column to the left'
+          }
           aria-pressed={pinned}
           onClick={(e) => {
             e.stopPropagation();
@@ -363,9 +378,8 @@ interface RowProps<T> {
   viewIndex: number;
   columns: readonly GridColumn<T>[];
   selected: boolean;
-  pinnedColumnId: string | null;
-  stickyLeft: (id: string | 'select') => number | undefined;
-  widthOf: (c: GridColumn<T>) => number;
+  /** The column held in place at the left edge, if any. */
+  stuckColumnId: string | null;
   focus: FocusCell | null;
   onRowClick?: (e: MouseEvent) => void;
   onToggleSelect?: () => void;
@@ -376,8 +390,7 @@ function GridRowInner<T>({
   viewIndex,
   columns,
   selected,
-  pinnedColumnId,
-  stickyLeft,
+  stuckColumnId,
   focus,
   onRowClick,
   onToggleSelect,
@@ -393,8 +406,7 @@ function GridRowInner<T>({
     >
       <div
         role="gridcell"
-        className={`grid__cell grid__cell--select is-pinned${focus?.viewRow === viewIndex && focus.col === 0 ? ' is-focused' : ''}`}
-        style={{ left: stickyLeft('select') }}
+        className={`grid__cell grid__cell--select${focus?.viewRow === viewIndex && focus.col === 0 ? ' is-focused' : ''}`}
         onClick={(e) => {
           e.stopPropagation();
           onToggleSelect?.();
@@ -404,14 +416,12 @@ function GridRowInner<T>({
       </div>
       {columns.map((col, idx) => {
         const colIndex = idx + 1;
-        const pinned = pinnedColumnId === col.id;
-        const left = stickyLeft(col.id);
+        const pinned = stuckColumnId === col.id;
         return (
           <div
             key={col.id}
             role="gridcell"
             className={`grid__cell${col.align === 'right' ? ' is-right' : ''}${col.mono ? ' is-mono' : ''}${pinned ? ' is-pinned' : ''}${focus?.viewRow === viewIndex && focus.col === colIndex ? ' is-focused' : ''}`}
-            style={left !== undefined ? { left } : undefined}
             title={col.title?.(row)}
           >
             {col.render(row)}

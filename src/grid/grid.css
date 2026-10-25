@@ -216,13 +216,24 @@
 .grid__hcell.is-pinned,
 .grid__cell.is-pinned {
   position: sticky;
+  left: 0;
   z-index: 2;
   background: inherit;
+  /* A clear right edge, so it reads as a frozen column and not as part of the scrolling ones. */
+  box-shadow: inset -1px 0 0 var(--line-strong);
 }
 
 .grid__hcell.is-pinned {
   z-index: 5;
   background: var(--surface-2);
+}
+
+/* Once the grid is scrolled sideways, a soft shadow shows that content is passing underneath. */
+.grid[data-scrolled-x] .grid__hcell.is-pinned,
+.grid[data-scrolled-x] .grid__cell.is-pinned {
+  box-shadow:
+    inset -1px 0 0 var(--line-strong),
+    8px 0 10px -6px rgb(26 34 48 / 28%);
 }
 
 .grid__row.is-selected {
@@ -283,18 +294,6 @@
   background: currentColor;
   transform: rotate(-45deg);
   margin: 2px auto;
-}
-
-.grid__hcell.is-pinned::after,
-.grid__cell.is-pinned::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 1px;
-  box-shadow: 2px 0 4px rgb(26 34 48 / 8%);
-  pointer-events: none;
 }
 
 /* The row checkbox is a display only: clicks go to its cell, so keyboard focus stays on the grid. */
