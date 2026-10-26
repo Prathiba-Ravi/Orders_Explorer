@@ -2,9 +2,9 @@
 
 A one-screen tool for looking through 50,000 orders. The data grid shows the orders, and the filter builder decides which ones the grid shows.
 
-I built it for the person in the brief: someone on an operations team, on a 13-inch laptop, working fast and preferring the keyboard to the mouse. So the screen is dense (28px rows, 13px text), the grid gets as much height as possible, and almost everything can be done from the keyboard.
+It was built for a 13-inch laptop, working fast and preferring the keyboard to the mouse. So the screen is dense (28px rows, 13px text), the grid gets as much height as possible, and almost everything can be done from the keyboard.
 
-Stack: React, TypeScript, Vite. The grid, the virtualization and the filter builder are all written by me. I did not use any table, grid, virtualization or query-builder library.
+Stack: React, TypeScript, Vite. The grid, the virtualization and the filter builder .It does not use any table, grid, virtualization or query-builder library.
 
 ## How to run
 
@@ -16,7 +16,7 @@ npm run build      # type-check + production build
 npm run preview    # serve the production build
 ```
 
-I used Node 24 as asked (it also runs on Node 22). The keyboard shortcut list is at `/#docs` (for example http://localhost:5173/#docs), and there is a "Keyboard shortcuts" link in the toolbar.
+It use Node 24 as asked (it also runs on Node 22). The keyboard shortcut list is at `/#docs` (for example http://localhost:5173/#docs), and there is a "Keyboard shortcuts" link in the toolbar.
 
 ## Screenshots
 
@@ -32,10 +32,10 @@ Empty state (the filter matches nothing, with a clear message and a button to cl
 
 ### Data grid
 
-- **Virtualized scrolling.** Only the rows near the screen exist in the DOM (about 30 out of 50,000). Rows are a fixed 28px, so I can work out which rows are visible with simple maths. A few extra rows are kept above and below so fast scrolling never shows gaps.
+- **Virtualized scrolling.** Only the rows near the screen exist in the DOM (about 30 out of 50,000). Rows are a fixed 28px, so can work out which rows are visible with simple maths. A few extra rows are kept above and below so fast scrolling never shows gaps.
 - **Sorting.** Click a header to sort, click again to reverse. Each column sorts by its real type: dates by time, amounts as numbers, text without caring about case, and status in workflow order (pending to cancelled). Empty values always go last, and ties are broken by order ID so the order never jumps around. The grid opens sorted by **Created At, newest first**, because an operations team looks at recent orders first.
 - **Column resize.** Drag the edge of a header. Double-click the edge to reset that column.
-- **Pin one column.** Pin a column from its header (or press `P`). It moves to the left edge and stays there when you scroll sideways, like frozen panes in a spreadsheet, with a soft shadow once other columns slide under it. Only one column can be pinned.
+- **Pin one column.** Pin a column from its header (or press `P`). It moves to the left edge and stays there when scrolled sideways, like frozen panes in a spreadsheet. Only one column can be pinned.
 - **Selecting rows.** Click a row to select it, Shift+click for a range, Ctrl/Cmd+click to add or remove one row. The toolbar shows how many are selected. The checkbox column and its header checkbox do the same with the mouse.
 - **Keyboard.** See the shortcut list below. The focused cell has a clear blue outline.
 - **Details.** Press Enter (or use the details panel) to see every field of the focused order. Notes are always shown as plain text, never as HTML, because some notes contain things like `<script>`.
@@ -122,17 +122,17 @@ Runtime (only two):
 
 Dev only: `vite` and `@vitejs/plugin-react` (build and dev server), `typescript` and the `@types/*` packages, and `vitest` (tests).
 
-I did not add a router (the `/#docs` page is chosen in `src/main.tsx` by looking at the URL hash), a state library, a date library or a CSS library. The app is small enough that they would only add weight.
+
 
 ## Data loading
 
-- `orders.json` stays untouched in `public/` and is **fetched when the app starts**. I did not `import` it, because that would put 17 MB into the JavaScript bundle and slow down the first load.
+- `orders.json` stays untouched in `public/` and is **fetched when the app starts**,did not `import` it, because that would put 17 MB into the JavaScript bundle and slow down the first load.
 - Parsing and cleaning happen in a **Web Worker**, so the page never freezes while 50,000 records are processed (about one second). The user sees a short "Downloading / Preparing" message and an error with a "Try again" button if loading fails.
 - All the messy-data rules from `data-notes.md` are fixed in **one place**, `src/data/normalize.ts`, before the data reaches the grid or the filter, as the notes ask. That includes:
   - both name fields become one Customer, and the amount is turned into rupees (version 1 is paise, version 2 is rupees), also when the amount is a string
   - all four date formats are read as UTC and kept as real timestamps (so sorting and date filters use the real time, not the text)
   - empty / missing `updatedAt`, status and region casing, priority missing shown as None, currency spaces trimmed
-  - duplicate order IDs: I keep one record using the rules in the notes (later `updatedAt`, else the one that has it, else the later one in the file). 50,030 records become 50,000 orders.
+  - duplicate order IDs: keep one record using the rules in the notes (later `updatedAt`, else the one that has it, else the later one in the file). 50,030 records become 50,000 orders.
 - Things I noticed beyond the notes, and handled:
   - version 1 amounts given as text are paise too, so they must be converted after being read as numbers
   - dates written as `DD/MM/YYYY` have no time, so the details panel says "time not recorded" and the CSV exports only the date
