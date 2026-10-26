@@ -111,7 +111,7 @@ describe('parseUrl / buildSearch', () => {
     expect(buildSearch(DEFAULT_URL_STATE)).toBe('');
     const { state, problems } = parseUrl('');
     expect(problems).toEqual([]);
-    expect(state.sort).toBeNull(); // unsorted: original order
+    expect(state.sort).toEqual({ columnId: 'createdAt', dir: 'desc' });
     expect(state.pinnedId).toBeNull();
     expect(state.selection.size).toBe(0);
     expect(state.filter.groups).toHaveLength(0);
@@ -135,7 +135,9 @@ describe('parseUrl / buildSearch', () => {
   it('only what the user changed is written to the URL', () => {
     expect(buildSearch({ ...DEFAULT_URL_STATE, pinnedId: 'region' })).toBe('p=region');
     expect(buildSearch({ ...DEFAULT_URL_STATE, sort: { columnId: 'amount', dir: 'desc' } })).toBe('s=amount.desc');
+    expect(buildSearch({ ...DEFAULT_URL_STATE, sort: null })).toBe('s=none');
     expect(parseUrl('?p=region').state.pinnedId).toBe('region');
+    expect(parseUrl('?s=none').state.sort).toBeNull();
   });
 
   it('a broken link never throws: each bad part falls back and says so', () => {
@@ -155,7 +157,7 @@ describe('parseUrl / buildSearch', () => {
       expect(problems, search).toHaveLength(1);
       expect(problems[0], search).toContain(word);
       // the bad part fell back to its default
-      if (search.startsWith('?s=')) expect(state.sort).toBeNull();
+      if (search.startsWith('?s=')) expect(state.sort).toEqual({ columnId: 'createdAt', dir: 'desc' });
       if (search.startsWith('?p=')) expect(state.pinnedId).toBeNull();
     }
   });

@@ -8,7 +8,7 @@ import { decodeSelection, encodeSelection } from './selectionCodec';
 /** What the URL remembers: the filter, the sort, the pinned column and the selected rows. */
 export interface UrlState {
   filter: FilterRoot;
-  /** null = unsorted (original order). */
+  /** null = unsorted (original file order). */
   sort: SortState | null;
   /** null = nothing pinned. */
   pinnedId: string | null;
@@ -55,9 +55,12 @@ export function parseUrl(search: string): ParsedUrl {
 
   const s = params.get('s');
   if (s !== null) {
-    const decoded = parseSort(s);
-    if (decoded) sort = decoded;
-    else problems.push('The sort in this link is not valid, so orders are shown in their original order.');
+    if (s === 'none') sort = null;
+    else {
+      const decoded = parseSort(s);
+      if (decoded) sort = decoded;
+      else problems.push('The sort in this link is not valid, so orders use the default Created At sort.');
+    }
   }
 
   const p = params.get('p');
@@ -81,7 +84,10 @@ export function buildSearch(state: UrlState): string {
   const params = new URLSearchParams();
   const f = encodeFilter(state.filter);
   if (f) params.set('f', f);
-  if (state.sort) params.set('s', `${state.sort.columnId}.${state.sort.dir}`);
+  if (state.sort === null) params.set('s', 'none');
+  else if (state.sort.columnId !== DEFAULT_SORT.columnId || state.sort.dir !== DEFAULT_SORT.dir) {
+    params.set('s', `${state.sort.columnId}.${state.sort.dir}`);
+  }
   if (state.pinnedId) params.set('p', state.pinnedId);
   if (state.selection.size > 0) params.set('sel', encodeSelection(state.selection));
   return params.toString();
