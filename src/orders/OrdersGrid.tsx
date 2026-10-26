@@ -11,6 +11,7 @@ interface OrdersGridProps {
   view: ArrayLike<number>;
   sort: SortState | null;
   onSort: (columnId: string) => void;
+  onClearSort: () => void;
   widths: Record<string, number>;
   onWidthChange: (id: string, width: number) => void;
   pinnedColumnId: string | null;
@@ -31,6 +32,7 @@ export function OrdersGrid({
   view,
   sort,
   onSort,
+  onClearSort,
   widths,
   onWidthChange,
   pinnedColumnId,
@@ -87,6 +89,7 @@ export function OrdersGrid({
       label="Orders"
       sort={sort}
       onSort={onSort}
+      onClearSort={onClearSort}
       widths={widths}
       onWidthChange={onWidthChange}
       pinnedColumnId={pinnedColumnId}

@@ -23,7 +23,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
         <Row label="Status" value={STATUS_LABEL[order.status]} />
         <Row label="Amount" value={formatINR(order.amount)} />
         <Row
-          label="Created (UTC)"
+          label="Created At"
           value={
             order.createdAtDateOnly
               ? `${formatDateUTC(order.createdAt)} (time not recorded)`
@@ -31,7 +31,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
           }
         />
         <Row
-          label="Updated (UTC)"
+          label="Updated At"
           value={order.updatedAt === null ? EMPTY : formatDateTimeUTC(order.updatedAt, true)}
         />
         <Row label="Region" value={REGION_LABEL[order.region]} />

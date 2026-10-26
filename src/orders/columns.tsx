@@ -42,14 +42,14 @@ export const ORDER_COLUMNS: readonly GridColumn<Order>[] = [
   },
   {
     id: 'createdAt',
-    header: 'Created (UTC)',
+    header: 'Created At',
     width: 148,
     sortable: true,
     render: (o) => formatDateTimeUTC(o.createdAt),
   },
   {
     id: 'updatedAt',
-    header: 'Updated (UTC)',
+    header: 'Updated At',
     width: 148,
     sortable: true,
     render: (o) => (o.updatedAt === null ? muted(EMPTY) : formatDateTimeUTC(o.updatedAt)),
