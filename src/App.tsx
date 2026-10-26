@@ -17,8 +17,25 @@ import './App.css';
 
 const NO_ORDERS: readonly Order[] = [];
 
+interface UndoSnapshot {
+  filter: FilterRoot;
+  sort: SortState | null;
+  pinnedColumnId: string | null;
+  selected: ReadonlySet<number>;
+  widths: Record<string, number>;
+}
+
 function isTypingTarget(el: EventTarget | null): boolean {
   return el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName));
+}
+
+function isTextEditingTarget(el: EventTarget | null): boolean {
+  return (
+    el instanceof HTMLElement &&
+    (el.isContentEditable ||
+      el instanceof HTMLTextAreaElement ||
+      (el instanceof HTMLInputElement && el.type !== 'checkbox' && el.type !== 'button' && el.type !== 'submit'))
+  );
 }
 
 export function App() {
@@ -37,6 +54,16 @@ export function App() {
   const [resetToken, setResetToken] = useState(0);
   const [details, setDetails] = useState<Order | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const undoHistoryRef = useRef<UndoSnapshot[]>([]);
+  const skipUndoCaptureRef = useRef(false);
+  const lastUndoChangeRef = useRef<{ kind: 'filter' | 'other'; at: number } | null>(null);
+  const currentUndoSnapshotRef = useRef<UndoSnapshot>({
+    filter,
+    sort,
+    pinnedColumnId,
+    selected,
+    widths,
+  });
   const panelRef = useRef<HTMLDivElement>(null);
   const filtersButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -59,6 +86,41 @@ export function App() {
       ]);
     }
   }, [ready, orders, selected]);
+
+  useEffect(() => {
+    const previous = currentUndoSnapshotRef.current;
+    const current: UndoSnapshot = { filter, sort, pinnedColumnId, selected, widths };
+    if (
+      previous.filter === current.filter &&
+      previous.sort === current.sort &&
+      previous.pinnedColumnId === current.pinnedColumnId &&
+      previous.selected === current.selected &&
+      previous.widths === current.widths
+    ) {
+      return;
+    }
+
+    currentUndoSnapshotRef.current = current;
+    if (skipUndoCaptureRef.current) {
+      skipUndoCaptureRef.current = false;
+      lastUndoChangeRef.current = null;
+      return;
+    }
+    const filterOnlyChange =
+      previous.filter !== current.filter &&
+      previous.sort === current.sort &&
+      previous.pinnedColumnId === current.pinnedColumnId &&
+      previous.selected === current.selected &&
+      previous.widths === current.widths;
+    const now = Date.now();
+    const lastChange = lastUndoChangeRef.current;
+    const coalesceFilterEdit = filterOnlyChange && lastChange?.kind === 'filter' && now - lastChange.at < 800;
+    if (!coalesceFilterEdit) {
+      undoHistoryRef.current.push(previous);
+      if (undoHistoryRef.current.length > 100) undoHistoryRef.current.shift();
+    }
+    lastUndoChangeRef.current = { kind: filterOnlyChange ? 'filter' : 'other', at: now };
+  }, [filter, sort, pinnedColumnId, selected, widths]);
 
   // Keep the URL in step with the screen (replaceState: no history entry per click or keystroke).
   useEffect(() => {
@@ -119,6 +181,18 @@ export function App() {
     downloadCsv(ordersToCsv(rows), csvFilename());
   };
 
+  const undo = useCallback(() => {
+    const previous = undoHistoryRef.current.pop();
+    if (!previous) return;
+    lastUndoChangeRef.current = null;
+    skipUndoCaptureRef.current = true;
+    setFilter(previous.filter);
+    setSort(previous.sort);
+    setPinnedColumnId(previous.pinnedColumnId);
+    setSelected(previous.selected);
+    setWidths(previous.widths);
+  }, []);
+
   const closeFilters = () => {
     setFiltersOpen(false);
     filtersButtonRef.current?.focus();
@@ -127,6 +201,12 @@ export function App() {
   // Global shortcuts are ignored while typing in a field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        if (isTextEditingTarget(e.target)) return;
+        e.preventDefault();
+        undo();
+        return;
+      }
       if (isTypingTarget(e.target)) return;
       if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key === '/') {
         e.preventDefault();
@@ -145,7 +225,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [resetView, selected, sortedAll, orders]);
+  }, [resetView, selected, sortedAll, orders, undo]);
 
   return (
     <div className="app">
@@ -170,7 +250,7 @@ export function App() {
             <span aria-hidden="true">{filtersOpen ? '▴' : '▾'}</span>
           </button>
         )}
-        <a className="btn" href="/docs">
+        <a className="btn toolbar__docs-link" href="/docs">
           Keyboard shortcuts
         </a>
         <div className="toolbar__spacer" />

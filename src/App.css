@@ -79,6 +79,12 @@
   background: var(--surface-2);
 }
 
+.toolbar__docs-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .toolbar > a.btn {
   display: inline-flex;
   align-items: center;

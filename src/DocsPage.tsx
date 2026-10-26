@@ -31,7 +31,7 @@ const SHORTCUT_SECTIONS: [string, [string, string][]][] = [
     'Filters',
     [
       ['/', 'Open Filters.'],
-      ['↑ ↓ ← →', 'Move between filter controls and options.'],
+      ['↑ ↓ ← →', 'Move between controls and checkboxes. Select menus and text fields keep their normal arrow-key behavior.'],
       ['Space', 'Toggle a focused option.'],
       ['Ctrl / Cmd + Enter', 'Add a condition to the current group.'],
       ['Ctrl / Cmd + Shift + Enter', 'Add a group.'],
@@ -41,6 +41,7 @@ const SHORTCUT_SECTIONS: [string, [string, string][]][] = [
   [
     'Other',
     [
+      ['Ctrl + Z / Cmd + Z', 'Undo the last filter, sort, pin, selection, or column-width change (outside text fields).'],
       ['Alt + R', 'Reset the view. Filters and selection are kept.'],
       ['Alt + E', 'Export selected rows.'],
       ['Escape', 'Close order details or Filters.'],
@@ -54,7 +55,6 @@ export function DocsPage() {
     <main className="docs">
       <a href="/">← Orders</a>
       <h1>Keyboard shortcuts</h1>
-
       {SHORTCUT_SECTIONS.map(([title, shortcuts]) => (
         <section className="docs__section" key={title}>
           <h2>{title}</h2>

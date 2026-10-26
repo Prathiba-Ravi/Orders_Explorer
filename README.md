@@ -39,7 +39,7 @@ Empty state (the filter matches nothing, with a clear message and a button to cl
 - **Selecting rows.** Click a row to select it, Shift+click for a range, Ctrl/Cmd+click to add or remove one row. The toolbar shows how many are selected. The checkbox column and its header checkbox do the same with the mouse.
 - **Keyboard.** See the shortcut list below. The focused cell has a clear blue outline.
 - **Details.** Press Enter (or use the details panel) to see every field of the focused order. Notes are always shown as plain text, never as HTML, because some notes contain things like `<script>`.
-- **Display.** Numbers are right-aligned. Amounts use Indian grouping with two decimals (`₹1,23,456.50`). Every date uses one format, `14 Mar 2025, 09:30`, always in UTC (the headers say so). Long text is cut with an ellipsis, the full value shows on hover, and the notes in full are in the details panel. The header row is sticky.
+- **Display.** Numbers are right-aligned. Amounts use Indian grouping with two decimals (`₹1,23,456.50`). Every date uses one format, `14 Mar 2025, 09:30`, always in UTC. Long text is cut with an ellipsis, the full value shows on hover, and the notes in full are in the details panel. The header row is sticky.
 - **Reset view.** Brings back the default sort (Created At, newest first), default column widths, no pinned column, and scrolls to the top-left. It keeps the filters and the selected orders, because those have their own clear buttons.
 
 ### Filter builder
@@ -96,11 +96,11 @@ The same list is on the `/docs` page.
 | Keys | What it does |
 | --- | --- |
 | / | Open Filters and focus the first control |
-| Arrow keys | Move between controls and option checkboxes (text, number and date inputs keep their normal arrow-key editing) |
+| Arrow keys | Move between controls and option checkboxes. Select menus and text, number and date inputs keep their normal arrow-key behavior |
 | Space | Tick / untick a focused option |
 | Ctrl / Cmd + Enter | Add a condition to the focused group (or a group, if focus is outside one) |
 | Ctrl / Cmd + Shift + Enter | Add a group |
-| Ctrl / Cmd + Backspace | Clear all filters |
+| Ctrl / Cmd + Backspace | Clear all filters (outside text, number and date inputs) |
 
 New conditions and groups receive focus straight away. To remove one, move to its remove button and press Space or Enter.
 
@@ -108,6 +108,7 @@ New conditions and groups receive focus straight away. To remove one, move to it
 
 | Keys | What it does |
 | --- | --- |
+| Ctrl / Cmd + Z | Undo the last filter, sort, pin, selection or column-width change (outside text, number and date inputs) |
 | Alt + R | Reset view |
 | Alt + E | Export the selected orders as CSV |
 
