@@ -37,9 +37,9 @@ Runtime: only `react` and `react-dom` (UI). Dev only: `vite`, `@vitejs/plugin-re
 
 **Export everything that is selected: 200.** Selection is something the user chose on purpose; a filter
 is only a view. Silently dropping 180 selected rows on export would lose their work. To stay honest, the
-toolbar always says `200 selected (180 hidden by filter)`, the button says `Export 200 rows`, and the file
-has exactly 200 rows. "Deselect hidden" removes just the hidden ones. Rows are exported in the current
-sort order.
+toolbar always says `200 selected (180 hidden by filter)`, the button says `Export`, and the file has
+exactly 200 rows. "Deselect hidden" removes just the hidden ones. Rows are exported in the current sort
+order.
 
 ## What is in the URL
 
@@ -55,9 +55,11 @@ Sketches are in `design/`. Changes made while building:
   height on a 13-inch screen; active filters stay visible as chips (with and/or joiners).
 - Details open in a **side panel** that shares the width, instead of an overlay drawer.
 - No Currency column (it is always INR; amounts show ₹), still in details and the CSV.
-- The grid starts **unsorted and unpinned** (original order); **Reset view** returns exactly there (and scrolls to the top-left).
+- The grid starts sorted by **Created At, newest first**, and unpinned; **Reset view** returns to that state (and scrolls to the top-left).
 - A pinned column moves to the left edge like a frozen pane; the row checkboxes scroll away.
-- Added a keyboard shortcut list (`?`) and Shift+Arrow / Ctrl+A selection.
+- Keyboard shortcuts: `P` pins/unpins the focused column, `S` sorts/reverses it, and `U` clears its sort; `/` opens filters, `Delete` deselects selected orders, `Alt+R` resets the view, and `Alt+E` exports selected orders. Shift+Arrow and Ctrl/Cmd+A also support selection. Delete does not remove order data.
+- In the open filter builder, arrow keys move between controls and option checkboxes; Space toggles a focused option. Ctrl/Cmd+Enter adds a condition to the focused group, Ctrl/Cmd+Shift+Enter adds a group, and Ctrl/Cmd+Backspace clears all filters. Remove buttons are reachable by arrow navigation and activate with Space/Enter. Arrow keys inside text, number, and date inputs retain their normal editing behavior.
+- The complete keyboard shortcut guide is available at `/docs`.
 
 ## Known issues
 
