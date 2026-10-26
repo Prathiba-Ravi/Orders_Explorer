@@ -4,7 +4,6 @@ import { useOrders } from './data/useOrders';
 import { applyFilter } from './filter/apply';
 import { FilterBuilder } from './filter/FilterBuilder';
 import { FilterChips } from './filter/FilterChips';
-import { conditionStatus } from './filter/status';
 import { EMPTY_FILTER, type FilterRoot } from './filter/types';
 import type { SortState } from './grid/types';
 import { formatCount } from './lib/format';
@@ -14,7 +13,6 @@ import { OrderDetails } from './orders/OrderDetails';
 import { OrdersGrid } from './orders/OrdersGrid';
 import { createSorter, DEFAULT_SORT, nextSort } from './orders/sort';
 import { buildSearch, parseUrl } from './url/urlState';
-import { ShortcutsHelp } from './ShortcutsHelp';
 import './App.css';
 
 const NO_ORDERS: readonly Order[] = [];
@@ -39,7 +37,6 @@ export function App() {
   const [resetToken, setResetToken] = useState(0);
   const [details, setDetails] = useState<Order | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const filtersButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -93,17 +90,17 @@ export function App() {
     return selected.size - visible;
   }, [filtered, orders, selected]);
 
-  const activeConditions = useMemo(
-    () => filter.groups.reduce((n, g) => n + g.conditions.filter((c) => conditionStatus(c).state === 'ok').length, 0),
-    [filter],
-  );
-
   const onWidthChange = useCallback((id: string, width: number) => setWidths((w) => ({ ...w, [id]: width })), []);
   const onTogglePin = useCallback((id: string) => setPinnedColumnId((cur) => (cur === id ? null : id)), []);
   const onSort = useCallback((id: string) => setSort((cur) => nextSort(cur, id)), []);
-  // The starting view: unsorted, default widths, nothing pinned, scrolled to the top-left.
-  // (Filters and the row selection have their own Clear buttons and are left alone.)
-  const viewIsDefault = sort === DEFAULT_SORT && Object.keys(widths).length === 0 && pinnedColumnId === null;
+  const onClearSort = useCallback(() => setSort(null), []);
+  // Reset sort, widths, pinning and scroll, while keeping filters and selection.
+  const viewIsDefault =
+    sort !== null &&
+    sort.columnId === DEFAULT_SORT.columnId &&
+    sort.dir === DEFAULT_SORT.dir &&
+    Object.keys(widths).length === 0 &&
+    pinnedColumnId === null;
   const resetView = useCallback(() => {
     setSort(DEFAULT_SORT);
     setWidths({});
@@ -127,22 +124,28 @@ export function App() {
     filtersButtonRef.current?.focus();
   };
 
-  // "/" opens the filters, "?" shows the shortcuts. Ignored while typing in a field.
+  // Global shortcuts are ignored while typing in a field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
-      if (e.key === '/') {
+      if (isTypingTarget(e.target)) return;
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key === '/') {
         e.preventDefault();
         setFiltersOpen(true);
         requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('select, input, button')?.focus());
-      } else if (e.key === '?') {
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key === 'Delete') {
         e.preventDefault();
-        setHelpOpen((open) => !open);
+        setSelected(new Set());
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        resetView();
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        if (selected.size > 0) exportSelected();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [resetView, selected, sortedAll, orders]);
 
   return (
     <div className="app">
@@ -164,10 +167,12 @@ export function App() {
             onClick={() => setFiltersOpen((open) => !open)}
           >
             Filters
-            {activeConditions > 0 && <span className="badge">{activeConditions}</span>}
             <span aria-hidden="true">{filtersOpen ? '▴' : '▾'}</span>
           </button>
         )}
+        <a className="btn" href="/docs">
+          Keyboard shortcuts
+        </a>
         <div className="toolbar__spacer" />
         {ready && selected.size > 0 && (
           <span className="toolbar__selection" role="status">
@@ -178,8 +183,12 @@ export function App() {
                 Deselect hidden
               </button>
             )}
-            <button type="button" className="link" onClick={() => setSelected(new Set())}>
-              Clear
+            <button
+              type="button"
+              className="link"
+              onClick={() => setSelected(new Set())}
+            >
+              Deselect
             </button>
           </span>
         )}
@@ -189,10 +198,10 @@ export function App() {
               type="button"
               className="btn btn--primary"
               disabled={selected.size === 0}
-              title={selected.size === 0 ? 'Select rows to export them' : 'Download the selected rows as CSV'}
+              title={selected.size === 0 ? 'Select rows to export them (Alt+E)' : 'Download selected rows as CSV (Alt+E)'}
               onClick={exportSelected}
             >
-              {selected.size === 0 ? 'Export' : `Export ${formatCount(selected.size)} ${selected.size === 1 ? 'row' : 'rows'}`}
+              Export
             </button>
             <button
               type="button"
@@ -200,21 +209,12 @@ export function App() {
               disabled={viewIsDefault}
               title={
                 viewIsDefault
-                  ? 'The view is already in its starting state'
-                  : 'Back to the starting view: no sort, default column widths, nothing pinned, scrolled to the top-left. Filters and selection are kept.'
+                  ? 'The view is already in its starting state (Alt+R)'
+                  : 'Reset to Created At (newest first), default column widths, nothing pinned and top-left scroll (Alt+R). Filters and selection are kept.'
               }
               onClick={resetView}
             >
               Reset view
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--icon"
-              aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
-              onClick={() => setHelpOpen((open) => !open)}
-            >
-              ?
             </button>
           </>
         )}
@@ -248,7 +248,7 @@ export function App() {
             }
           }}
         >
-          <FilterBuilder filter={filter} onChange={setFilter} />
+          <FilterBuilder filter={filter} onChange={setFilter} onClearAll={() => setFilter(EMPTY_FILTER)} />
         </div>
       )}
       {ready && <FilterChips filter={filter} onChange={setFilter} onClearAll={() => setFilter(EMPTY_FILTER)} />}
@@ -275,6 +275,7 @@ export function App() {
               view={view}
               sort={sort}
               onSort={onSort}
+              onClearSort={onClearSort}
               widths={widths}
               onWidthChange={onWidthChange}
               pinnedColumnId={pinnedColumnId}
@@ -304,8 +305,6 @@ export function App() {
           {details && <OrderDetails order={details} onClose={() => setDetails(null)} />}
         </div>
       )}
-
-      {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }

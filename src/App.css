@@ -79,6 +79,12 @@
   background: var(--surface-2);
 }
 
+.toolbar > a.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 /* ---- toolbar extras ---- */
 .toolbar {
   gap: 12px;
@@ -120,18 +126,6 @@
 .btn--toggle.is-open {
   border-color: var(--accent);
   background: var(--accent-soft);
-}
-
-.badge {
-  min-width: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 18px;
-  text-align: center;
 }
 
 .btn--primary {

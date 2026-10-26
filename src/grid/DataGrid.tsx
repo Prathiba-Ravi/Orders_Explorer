@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { GridColumn, SortState } from './types';
 import { MIN_COLUMN_WIDTH, useColumnResize } from './useColumnResize';
 import { useVirtualWindow } from './useVirtualWindow';
@@ -34,6 +34,7 @@ interface DataGridProps<T> {
   label: string;
   sort: SortState | null;
   onSort: (columnId: string) => void;
+  onClearSort: () => void;
   widths: Readonly<Record<string, number>>;
   onWidthChange: (columnId: string, width: number) => void;
   pinnedColumnId?: string | null;
@@ -56,6 +57,7 @@ export function DataGrid<T>({
   label,
   sort,
   onSort,
+  onClearSort,
   widths,
   onWidthChange,
   pinnedColumnId = null,
@@ -68,11 +70,18 @@ export function DataGrid<T>({
   resetToken = 0,
 }: DataGridProps<T>) {
   const count = view.length;
+  const didAutoFocus = useRef(false);
   const { scrollerRef, start, end, onScroll, totalHeight } = useVirtualWindow({
     count,
     rowHeight: ROW_HEIGHT,
     headerHeight: HEADER_HEIGHT,
   });
+
+  useEffect(() => {
+    if (didAutoFocus.current || count === 0) return;
+    didAutoFocus.current = true;
+    if (document.activeElement === document.body) scrollerRef.current?.focus();
+  }, [count, scrollerRef]);
 
   const sortColumn = sort?.columnId;
   const sortDir = sort?.dir;
@@ -108,59 +117,110 @@ export function DataGrid<T>({
   const colCount = ordered.length + 1;
 
   const moveFocus = (cell: FocusCell) => {
-    const row = Math.max(0, Math.min(count - 1, cell.viewRow));
+    const row = Math.max(-1, Math.min(count - 1, cell.viewRow));
     const col = Math.max(0, Math.min(colCount - 1, cell.col));
     onFocusChange({ viewRow: row, col });
-    scrollRowIntoView(scrollerRef.current, row);
+    if (row >= 0) scrollRowIntoView(scrollerRef.current, row);
+    scrollerRef.current?.focus();
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    // Keys pressed on a header button or the select-all checkbox belong to that control
-    // (Space/Enter sort, Space ticks the box). Only act on keys aimed at the grid itself.
-    if (e.target !== e.currentTarget) return;
-    if (!focus || count === 0) return;
+    if (!(e.target instanceof HTMLElement) || !e.currentTarget.contains(e.target)) return;
+    if (e.target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    const headerCell = e.target.closest<HTMLElement>('[data-grid-column-index]');
+    const activeFocus = headerCell
+      ? { viewRow: -1, col: Number(headerCell.dataset.gridColumnIndex) }
+      : focus;
+    const cmd = e.ctrlKey || e.metaKey;
+    const columnShortcut =
+      !cmd && !e.altKey && !e.shiftKey && ['p', 's', 'u'].includes(e.key.toLowerCase());
+    if (e.target !== e.currentTarget) {
+      const navigationKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key);
+      if (!columnShortcut && !(headerCell && navigationKey)) return;
+      if (navigationKey && headerCell && activeFocus) {
+        e.preventDefault();
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          moveFocus({ ...activeFocus, viewRow: e.key === 'ArrowDown' && count > 0 ? 0 : -1 });
+        } else if (e.key === 'ArrowLeft') {
+          moveFocus({ ...activeFocus, col: activeFocus.col - 1 });
+        } else if (e.key === 'ArrowRight') {
+          moveFocus({ ...activeFocus, col: activeFocus.col + 1 });
+        } else {
+          moveFocus({ ...activeFocus, col: e.key === 'Home' ? 0 : colCount - 1 });
+        }
+        return;
+      }
+      const targetColumnId = e.target.closest<HTMLElement>('[data-grid-column-id]')?.dataset.gridColumnId;
+      const columnId = targetColumnId ?? (activeFocus && activeFocus.col > 0 ? ordered[activeFocus.col - 1]?.id : undefined);
+      if (!columnId) return;
+      e.preventDefault();
+      if (e.key.toLowerCase() === 'p') onTogglePin?.(columnId);
+      else if (e.key.toLowerCase() === 's' && ordered.find((column) => column.id === columnId)?.sortable) {
+        onSort(columnId);
+      } else if (e.key.toLowerCase() === 'u' && sort?.columnId === columnId) {
+        onClearSort();
+      }
+      return;
+    }
+    if (!activeFocus) return;
+    const inHeader = activeFocus.viewRow < 0;
+    if (count === 0 && !inHeader) return;
     const page = Math.max(1, Math.floor(((scrollerRef.current?.clientHeight ?? 400) - HEADER_HEIGHT) / ROW_HEIGHT));
 
-    const cmd = e.ctrlKey || e.metaKey;
-    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.shiftKey && selection) {
+    if (!inHeader && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.shiftKey && selection) {
       // Shift+Arrow extends the selection from where it started, like a spreadsheet.
       e.preventDefault();
-      const row = Math.max(0, Math.min(count - 1, focus.viewRow + (e.key === 'ArrowDown' ? 1 : -1)));
-      moveFocus({ ...focus, viewRow: row });
-      selection.onSelectViewRow(row, 'range', focus.viewRow);
+      const row = Math.max(0, Math.min(count - 1, activeFocus.viewRow + (e.key === 'ArrowDown' ? 1 : -1)));
+      moveFocus({ ...activeFocus, viewRow: row });
+      selection.onSelectViewRow(row, 'range', activeFocus.viewRow);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      moveFocus({ ...focus, viewRow: focus.viewRow + 1 });
+      moveFocus({ ...activeFocus, viewRow: inHeader ? (count > 0 ? 0 : -1) : activeFocus.viewRow + 1 });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      moveFocus({ ...focus, viewRow: focus.viewRow - 1 });
+      moveFocus({ ...activeFocus, viewRow: inHeader ? -1 : Math.max(-1, activeFocus.viewRow - 1) });
     } else if (cmd && e.key.toLowerCase() === 'a' && selection) {
       e.preventDefault();
       selection.onSelectAllVisible(true);
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      moveFocus({ ...focus, col: focus.col + 1 });
+      moveFocus({ ...activeFocus, col: activeFocus.col + 1 });
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      moveFocus({ ...focus, col: focus.col - 1 });
+      moveFocus({ ...activeFocus, col: activeFocus.col - 1 });
     } else if (e.key === 'Home') {
       e.preventDefault();
-      moveFocus({ ...focus, col: 0 });
+      moveFocus({ ...activeFocus, col: 0 });
     } else if (e.key === 'End') {
       e.preventDefault();
-      moveFocus({ ...focus, col: colCount - 1 });
+      moveFocus({ ...activeFocus, col: colCount - 1 });
     } else if (e.key === 'PageDown') {
       e.preventDefault();
-      moveFocus({ ...focus, viewRow: focus.viewRow + page });
+      moveFocus({ ...activeFocus, viewRow: inHeader ? (count > 0 ? 0 : -1) : activeFocus.viewRow + page });
     } else if (e.key === 'PageUp') {
       e.preventDefault();
-      moveFocus({ ...focus, viewRow: focus.viewRow - page });
+      moveFocus({ ...activeFocus, viewRow: inHeader ? -1 : activeFocus.viewRow - page });
+    } else if (columnShortcut && e.key.toLowerCase() === 'p' && activeFocus.col > 0 && onTogglePin) {
+      e.preventDefault();
+      onTogglePin(ordered[activeFocus.col - 1]!.id);
+    } else if (columnShortcut && e.key.toLowerCase() === 's' && activeFocus.col > 0) {
+      const column = ordered[activeFocus.col - 1]!;
+      if (column.sortable) {
+        e.preventDefault();
+        onSort(column.id);
+      }
+    } else if (columnShortcut && e.key.toLowerCase() === 'u' && activeFocus.col > 0) {
+      const column = ordered[activeFocus.col - 1]!;
+      if (sort?.columnId === column.id) {
+        e.preventDefault();
+        onClearSort();
+      }
     } else if (e.key === ' ' && selection) {
       e.preventDefault();
-      selection.onSelectViewRow(focus.viewRow, 'toggle');
-    } else if (e.key === 'Enter' && onOpenRow) {
+      if (!inHeader) selection.onSelectViewRow(activeFocus.viewRow, 'toggle');
+    } else if (e.key === 'Enter' && onOpenRow && !inHeader) {
       e.preventDefault();
-      onOpenRow(focus.viewRow);
+      onOpenRow(activeFocus.viewRow);
     }
   };
 
@@ -185,6 +245,7 @@ export function DataGrid<T>({
             ? (ev) => {
                 handleRowClick(ev, i, selection);
                 onFocusChange({ viewRow: i, col: focus?.col && focus.col > 0 ? focus.col : 1 });
+                scrollerRef.current?.focus();
               }
             : undefined
         }
@@ -220,12 +281,13 @@ export function DataGrid<T>({
         style={style}
       >
         <div className="grid__header" role="row" aria-rowindex={1}>
-          <SelectHeaderCell selection={selection} />
+          <SelectHeaderCell selection={selection} focused={focus?.viewRow === -1 && focus.col === 0} />
           {ordered.map((col, idx) => (
             <HeaderCell
               key={col.id}
               column={col}
               colIndex={idx + 1}
+              focused={focus?.viewRow === -1 && focus.col === idx + 1}
               width={widthOf(col)}
               sort={sort?.columnId === col.id ? sort.dir : null}
               onSort={onSort}
@@ -262,11 +324,12 @@ function handleRowClick(e: MouseEvent, viewIndex: number, selection: GridSelecti
   else selection.onSelectViewRow(viewIndex, 'replace');
 }
 
-function SelectHeaderCell({ selection }: { selection?: GridSelectionProps }) {
+function SelectHeaderCell({ selection, focused }: { selection?: GridSelectionProps; focused: boolean }) {
   return (
     <div
       role="columnheader"
-      className="grid__hcell grid__hcell--select"
+      data-grid-column-index={0}
+      className={`grid__hcell grid__hcell--select${focused ? ' is-focused' : ''}`}
       aria-label="Select rows"
     >
       {selection && (
@@ -288,6 +351,7 @@ function SelectHeaderCell({ selection }: { selection?: GridSelectionProps }) {
 interface HeaderCellProps<T> {
   column: GridColumn<T>;
   colIndex: number;
+  focused: boolean;
   width: number;
   sort: SortState['dir'] | null;
   onSort: (columnId: string) => void;
@@ -302,6 +366,8 @@ interface HeaderCellProps<T> {
 
 function HeaderCell<T>({
   column,
+  colIndex,
+  focused,
   width,
   sort,
   onSort,
@@ -317,7 +383,9 @@ function HeaderCell<T>({
   return (
     <div
       role="columnheader"
-      className={`grid__hcell${right ? ' is-right' : ''}${stuck ? ' is-pinned' : ''}`}
+      data-grid-column-index={colIndex}
+      data-grid-column-id={column.id}
+      className={`grid__hcell${right ? ' is-right' : ''}${stuck ? ' is-pinned' : ''}${focused ? ' is-focused' : ''}`}
       aria-sort={ariaSort}
       title={column.header}
     >

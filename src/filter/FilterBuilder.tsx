@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import { ENUM_OPTIONS, FILTER_FIELDS, fieldMeta } from './fields';
 import { newFilterId } from './newId';
 import { conditionStatus } from './status';
@@ -17,16 +18,121 @@ import './filter.css';
 interface FilterBuilderProps {
   filter: FilterRoot;
   onChange: (next: FilterRoot) => void;
+  onClearAll: () => void;
 }
 
-export function FilterBuilder({ filter, onChange }: FilterBuilderProps) {
+export function FilterBuilder({ filter, onChange, onClearAll }: FilterBuilderProps) {
   const groups = filter.groups;
   const setGroups = (next: FilterGroup[]) => onChange({ groups: next });
+  const focusGroup = (groupId: string) => {
+    requestAnimationFrame(() => {
+      const group = Array.from(document.querySelectorAll<HTMLElement>('[data-filter-group-id]')).find(
+        (element) => element.dataset.filterGroupId === groupId,
+      );
+      group?.querySelector<HTMLElement>('select, button')?.focus();
+    });
+  };
+  const focusCondition = (conditionId: string) => {
+    requestAnimationFrame(() => {
+      const condition = Array.from(document.querySelectorAll<HTMLElement>('[data-filter-condition-id]')).find(
+        (element) => element.dataset.filterConditionId === conditionId,
+      );
+      condition?.querySelector<HTMLElement>('select, input')?.focus();
+    });
+  };
+  const addGroup = () => {
+    const group = emptyGroup();
+    setGroups([...groups, group]);
+    focusGroup(group.id);
+  };
+  const addCondition = (groupId: string) => {
+    const condition = defaultCondition('status');
+    setGroups(
+      groups.map((group) =>
+        group.id === groupId ? { ...group, conditions: [...group.conditions, condition] } : group,
+      ),
+    );
+    focusCondition(condition.id);
+  };
+
+  const handleFilterKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const command = event.ctrlKey || event.metaKey;
+    const isTextInput =
+      (target instanceof HTMLInputElement && target.type !== 'checkbox') ||
+      target instanceof HTMLTextAreaElement ||
+      target.isContentEditable;
+
+    if (command && !isTextInput && event.key === 'Backspace') {
+      event.preventDefault();
+      onClearAll();
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>('.filter__link')?.focus();
+      });
+      return;
+    }
+
+    if (command && event.key === 'Enter') {
+      event.preventDefault();
+      if (event.shiftKey) {
+        addGroup();
+      } else {
+        const groupId = target.closest<HTMLElement>('[data-filter-group-id]')?.dataset.filterGroupId;
+        if (groupId) addCondition(groupId);
+        else addGroup();
+      }
+      return;
+    }
+
+    const direction = event.key;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(direction)) return;
+
+    const tagName = target.tagName;
+    const isCheckbox = target instanceof HTMLInputElement && target.type === 'checkbox';
+    if (tagName === 'INPUT' && !isCheckbox) return;
+    if (tagName === 'SELECT' && direction !== 'ArrowLeft' && direction !== 'ArrowRight') return;
+
+    const section = event.currentTarget;
+    const cells = Array.from(
+      section.querySelectorAll<HTMLElement>('button:not(:disabled), select, input:not([type="hidden"])'),
+    );
+    const current = cells.indexOf(target);
+    if (current < 0) return;
+
+    const currentRect = target.getBoundingClientRect();
+    const currentX = currentRect.left + currentRect.width / 2;
+    const currentY = currentRect.top + currentRect.height / 2;
+    const horizontal = direction === 'ArrowLeft' || direction === 'ArrowRight';
+    const sign = direction === 'ArrowLeft' || direction === 'ArrowUp' ? -1 : 1;
+    let nearest: HTMLElement | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const cell of cells) {
+      if (cell === target) continue;
+      const rect = cell.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const primary = horizontal ? (x - currentX) * sign : (y - currentY) * sign;
+      if (primary <= 0) continue;
+      const secondary = horizontal ? Math.abs(y - currentY) : Math.abs(x - currentX);
+      const distance = primary + secondary * 2;
+      if (distance < nearestDistance) {
+        nearest = cell;
+        nearestDistance = distance;
+      }
+    }
+
+    if (nearest) {
+      event.preventDefault();
+      nearest.focus();
+    }
+  };
 
   if (groups.length === 0) {
     return (
-      <section className="filter" aria-label="Filter builder">
-        <button type="button" className="filter__link" onClick={() => setGroups([emptyGroup()])}>
+      <section className="filter" aria-label="Filter builder" onKeyDown={handleFilterKeyDown}>
+        <button type="button" className="filter__link" onClick={addGroup}>
           + Add filter
         </button>
       </section>
@@ -38,11 +144,11 @@ export function FilterBuilder({ filter, onChange }: FilterBuilderProps) {
   };
 
   return (
-    <section className="filter" aria-label="Filter builder">
+    <section className="filter" aria-label="Filter builder" onKeyDown={handleFilterKeyDown}>
       {groups.map((group, gi) => (
         <div key={group.id} className="filter__group">
           {gi > 0 && <div className="filter__and">AND</div>}
-          <div className="filter__group-inner">
+          <div className="filter__group-inner" data-filter-group-id={group.id}>
             <span className="filter__or-label">Match any</span>
             {group.conditions.map((cond, ci) => (
               <div key={cond.id} className="filter__row">
@@ -67,9 +173,7 @@ export function FilterBuilder({ filter, onChange }: FilterBuilderProps) {
             <button
               type="button"
               className="filter__link"
-              onClick={() =>
-                updateGroup(group.id, (g) => ({ ...g, conditions: [...g.conditions, defaultCondition('status')] }))
-              }
+              onClick={() => addCondition(group.id)}
             >
               + Condition
             </button>
@@ -85,7 +189,7 @@ export function FilterBuilder({ filter, onChange }: FilterBuilderProps) {
           </div>
         </div>
       ))}
-      <button type="button" className="filter__link" onClick={() => setGroups([...groups, emptyGroup()])}>
+      <button type="button" className="filter__link" onClick={addGroup}>
         + Group
       </button>
     </section>
@@ -140,7 +244,7 @@ function ConditionRow({
   const invalid = status.state === 'invalid';
 
   return (
-    <div className="filter__condition">
+    <div className="filter__condition" data-filter-condition-id={condition.id}>
       <select
         className="filter__select"
         value={condition.field}

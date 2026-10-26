@@ -250,9 +250,9 @@ describe('chip labels', () => {
       'Amount between ₹1,000.00 and …',
     );
     expect(conditionLabel({ id: 'a', kind: 'date', field: 'createdAt', op: 'after', value: '2026-01-01' })).toBe(
-      'Created after 1 Jan 2026',
+      'Created At after 1 Jan 2026',
     );
-    expect(conditionLabel({ id: 'a', kind: 'date', field: 'createdAt', op: 'after', value: '' })).toBe('Created after …');
+    expect(conditionLabel({ id: 'a', kind: 'date', field: 'createdAt', op: 'after', value: '' })).toBe('Created At after …');
     expect(conditionLabel({ id: 'a', kind: 'enum', field: 'status', op: 'isOneOf', values: ['shipped', 'delivered'] })).toBe(
       'Status is Shipped or Delivered',
     );
