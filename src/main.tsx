@@ -5,7 +5,7 @@ import { DocsPage } from './DocsPage';
 import './styles/tokens.css';
 import './styles/base.css';
 
-const isDocsPage = window.location.pathname.replace(/\/+$/, '') === '/docs';
+const isDocsPage = window.location.hash === '#docs';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

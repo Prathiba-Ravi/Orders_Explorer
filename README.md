@@ -16,7 +16,7 @@ npm run build      # type-check + production build
 npm run preview    # serve the production build
 ```
 
-I used Node 24 as asked (it also runs on Node 22). The keyboard shortcut list is at `/docs` (for example http://localhost:5173/docs), and there is a "Keyboard shortcuts" link in the toolbar.
+I used Node 24 as asked (it also runs on Node 22). The keyboard shortcut list is at `/#docs` (for example http://localhost:5173/#docs), and there is a "Keyboard shortcuts" link in the toolbar.
 
 ## Screenshots
 
@@ -62,7 +62,7 @@ Empty state (the filter matches nothing, with a clear message and a button to cl
 
 ## Keyboard shortcuts
 
-The same list is on the `/docs` page.
+The same list is on the `/#docs` page.
 
 **Grid**
 
@@ -122,7 +122,7 @@ Runtime (only two):
 
 Dev only: `vite` and `@vitejs/plugin-react` (build and dev server), `typescript` and the `@types/*` packages, and `vitest` (tests).
 
-I did not add a router (the `/docs` page is chosen in `src/main.tsx` by looking at the path), a state library, a date library or a CSS library. The app is small enough that they would only add weight.
+I did not add a router (the `/#docs` page is chosen in `src/main.tsx` by looking at the URL hash), a state library, a date library or a CSS library. The app is small enough that they would only add weight.
 
 ## Data loading
 
@@ -160,7 +160,7 @@ My sketches are in `design/` (the normal screen with data, and the screen when t
 - **The filter builder is collapsed behind a "Filters" button** (shortcut `/`) instead of always being open. On a 13-inch screen an open builder with a few groups takes a lot of height and leaves room for too few rows. The chips stay visible, so the active filter is never hidden.
 - **Details open in a side panel** next to the grid instead of a popup, so you can keep looking at the list.
 - **No Currency column.** It is always INR, so the ₹ sign on every amount says the same thing. Currency is still in the details panel and the CSV.
-- **Added later:** a Reset view button, the `/docs` keyboard shortcut page, and many more keyboard shortcuts than I first planned, because the brief says the team prefers the keyboard.
+- **Added later:** a Reset view button, the `/#docs` keyboard shortcut page, and many more keyboard shortcuts than I first planned, because the brief says the team prefers the keyboard.
 
 ## Known issues
 
@@ -170,7 +170,6 @@ My sketches are in `design/` (the normal screen with data, and the screen when t
 - **What is not in the URL:** column widths and which panels are open. The URL is updated without adding browser-history entries, so the Back button does not step through filter changes.
 - **UTC only.** All dates are shown in UTC. I chose that so sorting, filters and shared links always agree, but it is not the user's local time.
 - **The details panel makes the grid narrower** while it is open, which is tight on small windows.
-- **Direct `/docs` links need server support.** The dev server and `npm run preview` handle `/docs`, but a plain static host needs a rule that serves `index.html` for unknown paths.
 - **Browsers and tests.** I tested in Chromium only. The unit tests cover the data cleaning, sorting, filtering, URL and CSV logic; the screen itself (scrolling, layout, keyboard) was checked by hand and with scripts in the browser, not with automated UI tests.
 - **One sort column at a time.** Sorting by two columns together is not supported.
 
@@ -184,7 +183,7 @@ src/
   filter/    the filter model, compile-to-function, builder, chips, labels
   url/       reading and writing the URL (filter, sort, pin, selection)
   lib/       small helpers: number/date formatting, debounce
-  main.tsx   picks the app or the /docs page; App.tsx holds the page state
+  main.tsx   picks the app or the /#docs page; App.tsx holds the page state
 public/      orders.json (untouched)
 design/      my sketches
 docs/        screenshots used in this README

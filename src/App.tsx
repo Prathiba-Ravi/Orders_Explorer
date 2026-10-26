@@ -250,7 +250,7 @@ export function App() {
             <span aria-hidden="true">{filtersOpen ? '▴' : '▾'}</span>
           </button>
         )}
-        <a className="btn toolbar__docs-link" href="/docs">
+        <a className="btn toolbar__docs-link" href="/#docs">
           Keyboard shortcuts
         </a>
         <div className="toolbar__spacer" />
